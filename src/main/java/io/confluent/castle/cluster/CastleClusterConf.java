@@ -52,6 +52,14 @@ public class CastleClusterConf {
         }
     }
 
+    public void validateCastlePath() {
+        if (castlePath.isEmpty() ||
+                !(new File(castlePath).isDirectory())) {
+            throw new RuntimeException("The current value of castlePath (" +
+                castlePath + ") does not point to a valid directory.");
+        }
+    }
+
     @JsonProperty
     public String castlePath() {
         return castlePath;

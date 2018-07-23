@@ -29,8 +29,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 public class JmxDumperRole implements Role {
-    public static final String CLASS_NAME = "org.apache.kafka.jmx.JmxDumper";
-
+    public static final String CLASS_NAME = "io.confluent.castle.jmx.JmxDumper";
     private final int initialDelayMs;
 
     private final JmxDumpersConfig conf;

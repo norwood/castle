@@ -30,7 +30,7 @@ import java.io.IOException;
 import static io.confluent.castle.action.ActionPaths.JMX_DUMPER_LOGS;
 import static io.confluent.castle.action.ActionPaths.JMX_DUMPER_PROPERTIES;
 import static io.confluent.castle.action.ActionPaths.JMX_DUMPER_ROOT;
-import static io.confluent.castle.action.ActionPaths.KAFKA_RUN_CLASS;
+import static io.confluent.castle.action.ActionPaths.JMX_DUMPER_START_SCRIPT;
 
 /**
  * Starts the JMXDumper tool.
@@ -79,7 +79,7 @@ public final class JmxDumperStartAction extends Action {
 
     public static String[] createRunDaemonCommandLine() {
         return new String[]{"-n", "--", "nohup",
-            KAFKA_RUN_CLASS, JmxDumperRole.CLASS_NAME, JMX_DUMPER_PROPERTIES,
+            JMX_DUMPER_START_SCRIPT, JMX_DUMPER_PROPERTIES,
             "&>" + JMX_DUMPER_LOGS + "/stdout-stderr.txt", "</dev/null", "&"
         };
     }

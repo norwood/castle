@@ -38,14 +38,19 @@ public final class SourceSetupAction extends Action {
     @Override
     public void call(CastleCluster cluster, CastleNode node) throws Throwable {
         cluster.conf().validateKafkaPath();
-        node.cloud().remoteCommand(node).args(setupDirectoryCommand()).mustRun();
+        cluster.conf().validateCastlePath();
+        node.cloud().remoteCommand(node).args(setupDirectoriesCommand()).mustRun();
         node.cloud().remoteCommand(node).
             syncTo(cluster.conf().kafkaPath() + "/", ActionPaths.KAFKA_SRC + "/").
             mustRun();
+        node.cloud().remoteCommand(node).
+            syncTo(cluster.conf().castlePath() + "/", ActionPaths.CASTLE_SRC + "/").
+            mustRun();
     }
 
-    public static String[] setupDirectoryCommand() {
-        return new String[] {"sudo", "mkdir", "-p", ActionPaths.KAFKA_SRC, ActionPaths.LOGS_ROOT, "&&",
-            "sudo", "chown", "-R", "`whoami`", ActionPaths.KAFKA_SRC, ActionPaths.LOGS_ROOT};
+    public static String[] setupDirectoriesCommand() {
+        return new String[] {"sudo", "mkdir", "-p", ActionPaths.KAFKA_SRC, ActionPaths.CASTLE_SRC,
+            ActionPaths.LOGS_ROOT, "&&", "sudo", "chown", "-R", "`whoami`",
+            ActionPaths.KAFKA_SRC, ActionPaths.CASTLE_SRC, ActionPaths.LOGS_ROOT};
     }
 }

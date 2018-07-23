@@ -20,6 +20,13 @@ package io.confluent.castle.action;
 public final class ActionPaths {
     public static final String LOGS_ROOT = "/mnt/logs";
 
+    public static final String CASTLE_ROOT = "/mnt/castle";
+    public static final String CASTLE_SRC = CASTLE_ROOT + "/src";
+    public static final String JMX_DUMPER_START_SCRIPT = CASTLE_SRC + "/bin/jmx_dumper.sh";
+    public static final String JMX_DUMPER_ROOT = "/mnt/jmx";
+    public static final String JMX_DUMPER_PROPERTIES = JMX_DUMPER_ROOT  + "/jmx.conf";
+    public static final String JMX_DUMPER_LOGS = LOGS_ROOT + "/jmx";
+
     public static final String KAFKA_ROOT = "/mnt/kafka";
     public static final String KAFKA_SRC = KAFKA_ROOT + "/src";
     public static final String KAFKA_START_SCRIPT = KAFKA_SRC + "/bin/kafka-server-start.sh";
@@ -48,9 +55,4 @@ public final class ActionPaths {
     public static final String COLLECTD_PROPERTIES = COLLECTD_ROOT + "/collectd.conf";
     public static final String COLLECTD = "collectd";
     public static final String COLLECTD_LOGS = LOGS_ROOT + "/collectd";
-
-    public static final String KAFKA_RUN_CLASS = KAFKA_SRC + "/bin/kafka-run-class.sh";
-    public static final String JMX_DUMPER_ROOT = "/mnt/jmx";
-    public static final String JMX_DUMPER_PROPERTIES = JMX_DUMPER_ROOT  + "/jmx.conf";
-    public static final String JMX_DUMPER_LOGS = LOGS_ROOT + "/jmx";
 };
