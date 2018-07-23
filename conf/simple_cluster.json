@@ -29,7 +29,7 @@
     },
     "broker": {
       "type": "broker",
-      "initialDelayMs": 5000,
+      "initialDelayMs": 20000,
       "jvmOptions" : "-Xmx9g -Xms9g",
       "conf": {
         "num.io.threads": "16",
