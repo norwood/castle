@@ -241,15 +241,18 @@ public final class CastleUtil {
             args("-n", "--", "ps", "aux", "|", "awk", "'/" + effectivePattern + "/ { print $2 }'").
             run();
         if (retVal != 0) {
-            cluster.clusterLog().printf("Unable to determine if %s is running.%n", processPattern);
+            cluster.clusterLog().printf("%s: Unable to determine if %s is running.%n",
+                node.nodeName(), processPattern);
             return CastleReturnCode.TOOL_FAILED;
         }
         String pidString = stringBuilder.toString().trim();
         if (pidString.isEmpty()) {
-            cluster.clusterLog().printf("%s is not running.%n", processPattern);
+            cluster.clusterLog().printf("%s: %s is not running.%n",
+                node.nodeName(), processPattern);
             return CastleReturnCode.CLUSTER_FAILED;
         }
-        cluster.clusterLog().printf("%s is running as pid %s%n", processPattern, pidString);
+        cluster.clusterLog().printf("%s: %s is running as pid %s%n",
+            node.nodeName(), processPattern, pidString);
         return CastleReturnCode.SUCCESS;
     }
 
@@ -273,7 +276,7 @@ public final class CastleUtil {
             cluster.clusterLog().printf("Unable to determine if %s is running.%n", processPattern);
             return CastleReturnCode.TOOL_FAILED;
         } else if (retVal == 1) {
-            cluster.clusterLog().printf("%s is not running.%n", processPattern);
+            cluster.clusterLog().printf("%s: %s is not running.%n", node.nodeName(), processPattern);
             return CastleReturnCode.CLUSTER_FAILED;
         }
         String pidString = stringBuilder.toString();
@@ -281,7 +284,8 @@ public final class CastleUtil {
         if (firstSpace != -1) {
             pidString = pidString.substring(0, firstSpace - 1);
         }
-        cluster.clusterLog().printf("%s is running as pid %s%n", processPattern, pidString);
+        cluster.clusterLog().printf("%s: %s is running as pid %s%n",
+            node.nodeName(), processPattern, pidString);
         return CastleReturnCode.SUCCESS;
     }
 
