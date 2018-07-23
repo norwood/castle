@@ -70,7 +70,7 @@ public class TaskStatusAction extends Action  {
                     cluster.shutdownManager().changeReturnCode(CastleReturnCode.CLUSTER_FAILED);
                 } else if (state instanceof TaskDone) {
                     TaskDone doneState = (TaskDone) state;
-                    if (doneState.error().isEmpty()) {
+                    if ((doneState.error() == null) || doneState.error().isEmpty()) {
                         cluster.clusterLog().printf("Task %s succeeded with status %s%n",
                             taskId, doneState.status());
                     } else {
