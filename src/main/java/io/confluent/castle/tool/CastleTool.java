@@ -27,7 +27,6 @@ import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.Namespace;
 import io.confluent.castle.common.JsonTransformer;
-import org.apache.kafka.common.utils.Utils;
 import io.confluent.castle.action.ActionRegistry;
 import io.confluent.castle.action.ActionScheduler;
 import io.confluent.castle.cluster.CastleCluster;
