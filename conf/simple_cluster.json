@@ -1,0 +1,80 @@
+{
+  "nodes": {
+    "node0": {
+      "roleNames": [
+        "awsNode",
+        "broker",
+        "collectd",
+        "jmx",
+        "ubuntuNode",
+        "zooKeeper"
+      ]
+    }
+  },
+  "roles": {
+    "awsNode": {
+      "type": "awsNode",
+      "keyPair": "%{CASTLE_AWS_KEY}",
+      "securityGroup": "%{CASTLE_AWS_SECURITY_GROUP}",
+      "internal": "false",
+      "imageId": "ami-6e1a0117",
+      "instanceType": "m3.xlarge",
+      "sshIdentityFile": "%{CASTLE_SSH_IDENTITY_FILE}",
+      "sshUser": "ubuntu"
+    },
+    "broker": {
+      "type": "broker",
+      "initialDelayMs": 5000,
+      "jvmOptions" : "-Xmx9g -Xms9g",
+      "conf": {
+        "num.io.threads": "16",
+        "num.network.threads": "6",
+        "zookeeper.session.timeout.ms": "12000"
+      }
+    },
+    "collectd": {
+      "type": "collectd"
+    },
+    "jmx": {
+      "type": "jmx",
+      "conf": {
+        "localhost:9192": {
+          "periodMs": 1000,
+          "files": [
+            {
+              "path": "/mnt/logs/jmx/kafka-metrics.csv",
+              "objects": [
+                {
+                  "name": "kafka.server:type=FetchSessionCache,name=IncrementalFetchSessionEvictionsPerSec",
+                  "shortName": "IncrementalFetchSessionEvictionsPerSec",
+                  "attributes": ["Count"]
+                },
+                {
+                  "name": "kafka.server:type=KafkaRequestHandlerPool,name=RequestHandlerAvgIdlePercent",
+                  "shortName": "RequestHandlerAvgIdlePercent",
+                  "attributes": ["Count"]
+                },
+                {
+                  "name": "kafka.network:type=SocketServer,name=NetworkProcessorAvgIdlePercent",
+                  "shortName": "NetworkProcessorAvgIdlePercent",
+                  "attributes": ["Value"]
+                },
+                {
+                  "name": "kafka.server:type=ReplicaFetcherManager,name=MaxLag,clientId=Replica",
+                  "shortName": "MaxLag",
+                  "attributes": ["Value"]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "ubuntuNode": {
+      "type": "ubuntuNode"
+    },
+    "zooKeeper": {
+      "type": "zooKeeper"
+    }
+  }
+}
