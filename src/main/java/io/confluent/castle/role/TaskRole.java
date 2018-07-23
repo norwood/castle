@@ -19,6 +19,7 @@ package io.confluent.castle.role;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import io.confluent.castle.action.Action;
 import io.confluent.castle.action.TaskStartAction;
 import io.confluent.castle.action.TaskStatusAction;
@@ -41,13 +42,13 @@ import java.util.TreeSet;
 public class TaskRole implements Role {
     private final int initialDelayMs;
 
-    private final Map<String, TaskSpec> taskSpecs;
+    private final Map<String, JsonNode> taskSpecs;
 
     private final NavigableSet<String> waitFor;
 
     @JsonCreator
     public TaskRole(@JsonProperty("initialDelayMs") int initialDelayMs,
-                    @JsonProperty("taskSpecs") TreeMap<String, TaskSpec> taskSpecs,
+                    @JsonProperty("taskSpecs") TreeMap<String, JsonNode> taskSpecs,
                     @JsonProperty("waitFor") List<String> waitFor) {
         this.initialDelayMs = initialDelayMs;
         this.taskSpecs = Collections.unmodifiableMap(taskSpecs == null ?
@@ -75,7 +76,7 @@ public class TaskRole implements Role {
     }
 
     @JsonProperty
-    public Map<String, TaskSpec> taskSpecs() {
+    public Map<String, JsonNode> taskSpecs() {
         return taskSpecs;
     }
 

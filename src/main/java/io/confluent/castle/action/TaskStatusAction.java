@@ -52,7 +52,8 @@ public class TaskStatusAction extends Action  {
             TasksResponse response = CastleUtil.invokeCoordinator(
                 cluster, node, new CoordinatorFunction<TasksResponse>() {
                     @Override
-                    public TasksResponse apply(CoordinatorClient coordinatorClient) throws Exception {
+                    public TasksResponse apply(CoordinatorClient coordinatorClient, String endpoint)
+                            throws Exception {
                         TasksResponse response = coordinatorClient.tasks(
                             new TasksRequest(null, 0, 0, 0, 0));
                         if (response == null) {

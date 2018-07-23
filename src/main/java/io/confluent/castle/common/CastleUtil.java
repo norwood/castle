@@ -309,7 +309,7 @@ public final class CastleUtil {
     }
 
     public interface CoordinatorFunction<T> {
-        T apply(CoordinatorClient client) throws Exception;
+        T apply(CoordinatorClient client, String endpoint) throws Exception;
     }
 
     /**
@@ -325,7 +325,8 @@ public final class CastleUtil {
                 target("localhost", tunnel.localPort()).
                 log(node.log()).
                 build();
-            return func.apply(coordinatorClient);
+            return func.apply(coordinatorClient,
+                String.format("http://localhost:%d", tunnel.localPort()));
         }
     }
 

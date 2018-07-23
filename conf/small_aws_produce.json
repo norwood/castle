@@ -1,0 +1,131 @@
+{
+  "conf": {
+    "kafkaPath": "%{CASTLE_KAFKA_PATH}",
+    "castlePath": "%{CASTLE_PATH}",
+    "globalTimeout": 3600
+  },
+  "nodes": {
+    "node[0-2]": {
+      "roleNames": [
+        "awsNode",
+        "broker",
+        "collectd",
+        "jmx",
+        "trogdorAgent",
+        "ubuntuNode"
+      ]
+    },
+    "node3": {
+      "roleNames": [
+        "awsNode",
+        "collectd",
+        "task",
+        "trogdorCoordinator",
+        "ubuntuNode",
+        "zooKeeper"
+      ]
+    }
+  },
+  "roles": {
+    "awsNode": {
+      "type": "awsNode",
+      "keyPair": "%{CASTLE_AWS_KEY}",
+      "securityGroup": "%{CASTLE_AWS_SECURITY_GROUP}",
+      "internal": "false",
+      "imageId": "ami-6e1a0117",
+      "instanceType": "m3.xlarge",
+      "sshIdentityFile": "%{CASTLE_SSH_IDENTITY_FILE}",
+      "sshUser": "ubuntu"
+    },
+    "broker": {
+      "type": "broker",
+      "initialDelayMs": 20000,
+      "jvmOptions" : "-Xmx9g -Xms9g",
+      "conf": {
+        "num.io.threads": "16",
+        "num.network.threads": "6",
+        "zookeeper.session.timeout.ms": "12000"
+      }
+    },
+    "collectd": {
+      "type": "collectd"
+    },
+    "jmx": {
+      "type": "jmx",
+      "conf": {
+        "localhost:9192": {
+          "periodMs": 1000,
+          "files": [
+            {
+              "path": "/mnt/logs/jmx/kafka-metrics.csv",
+              "objects": [
+                {
+                  "name": "kafka.server:type=FetchSessionCache,name=IncrementalFetchSessionEvictionsPerSec",
+                  "shortName": "IncrementalFetchSessionEvictionsPerSec",
+                  "attributes": ["Count"]
+                },
+                {
+                  "name": "kafka.server:type=KafkaRequestHandlerPool,name=RequestHandlerAvgIdlePercent",
+                  "shortName": "RequestHandlerAvgIdlePercent",
+                  "attributes": ["Count"]
+                },
+                {
+                  "name": "kafka.network:type=SocketServer,name=NetworkProcessorAvgIdlePercent",
+                  "shortName": "NetworkProcessorAvgIdlePercent",
+                  "attributes": ["Value"]
+                },
+                {
+                  "name": "kafka.server:type=ReplicaFetcherManager,name=MaxLag,clientId=Replica",
+                  "shortName": "MaxLag",
+                  "attributes": ["Value"]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "task": {
+      "type": "task",
+      "initialDelayMs": 5000,
+      "taskSpecs": {
+        "bench": {
+          "class": "org.apache.kafka.trogdor.workload.ProduceBenchSpec",
+          "startMs": 0,
+          "durationMs": 1000000000000000,
+          "producerNode": "node0",
+          "bootstrapServers": "%{bootstrapServers}",
+          "targetMessagesPerSec": 10000,
+          "maxMessages": 1500000,
+          "producerConf": {
+              "acks": "all"
+          },
+          "activeTopics": {
+            "active[1-%{CASTLE_ACTIVE_TOPICS}]": {
+              "numPartitions": 3,
+              "replicationFactor": 3
+            }
+          },
+          "inactiveTopics": {
+            "inactive[1-%{CASTLE_INACTIVE_TOPICS}]": {
+              "numPartitions": 3,
+              "replicationFactor": 3
+            }
+          }
+        }
+      }
+    },
+    "trogdorAgent": {
+      "type": "trogdorAgent"
+    },
+    "trogdorCoordinator": {
+      "type": "trogdorCoordinator"
+    },
+    "ubuntuNode": {
+      "type": "ubuntuNode"
+    },
+    "zooKeeper": {
+      "type": "zooKeeper"
+    }
+  }
+}

@@ -62,7 +62,7 @@ public class TaskStopAction extends Action  {
         // will be ignored.
         CastleUtil.invokeCoordinator(cluster, node, new CastleUtil.CoordinatorFunction<Void>() {
             @Override
-            public Void apply(CoordinatorClient coordinatorClient) throws Exception {
+            public Void apply(CoordinatorClient coordinatorClient, String endpoint) throws Exception {
                 for (String taskId : taskIds) {
                     coordinatorClient.stopTask(new StopTaskRequest(taskId));
                 }
@@ -76,7 +76,8 @@ public class TaskStopAction extends Action  {
                 TasksResponse tasksResponse = CastleUtil.
                     invokeCoordinator(cluster, node, new CastleUtil.CoordinatorFunction<TasksResponse>() {
                         @Override
-                        public TasksResponse apply(CoordinatorClient coordinatorClient) throws Exception {
+                        public TasksResponse apply(CoordinatorClient coordinatorClient, String endpoint)
+                                throws Exception {
                             return coordinatorClient.tasks(
                                 new TasksRequest(null, 0, 0, 0, 0));
                         }
