@@ -14,12 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-BASEDIR="$( cd ""$(dirname "$0")"/.." ; pwd -P )"
-for JAR in ${BASEDIR}/target/*.jar; do
+CASTLE_PATH="$( cd ""$(dirname "$0")"/.." ; pwd -P )"
+for JAR in ${CASTLE_PATH}/target/*.jar; do
     CLASSPATH="$CLASSPATH:$JAR"
 done
-for JAR in ${BASEDIR}/target/*-package/castle/*.jar; do
+for JAR in ${CASTLE_PATH}/target/*-package/castle/*.jar; do
     CLASSPATH="$CLASSPATH:$JAR"
 done
-CLASSPATH="$CLASSPATH:$BASEDIR/conf/" # Include log4j.properties file
+CLASSPATH="$CLASSPATH:$CASTLE_PATH/conf/" # Include log4j.properties file
+export CASTLE_PATH
 exec java -cp "${CLASSPATH}" -Dlog4j.rootLogger=stdout "${CLASS}" "$@"

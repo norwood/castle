@@ -125,7 +125,7 @@ public final class CastleSsh {
             builder.addTargetName(action.id().toString());
         }
         try (ActionScheduler actionScheduler = builder.build()) {
-            actionScheduler.await(cluster.env().timeoutSecs(), TimeUnit.SECONDS);
+            actionScheduler.await(cluster.conf().globalTimeout(), TimeUnit.SECONDS);
         }
     }
 };

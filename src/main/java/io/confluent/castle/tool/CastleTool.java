@@ -58,9 +58,7 @@ public final class CastleTool {
 
     private static final String CASTLE_CLUSTER_INPUT_PATH = "CASTLE_CLUSTER_INPUT_PATH";
     private static final String CASTLE_CLUSTER_OUTPUT_PATH = "CASTLE_CLUSTER_OUTPUT_PATH";
-    private static final String CASTLE_TIMEOUT_SECONDS = "CASTLE_TIMEOUT_SECONDS";
     private static final String CASTLE_TARGETS = "CASTLE_TARGETS";
-    private static final String CASTLE_KAFKA_PATH = "CASTLE_KAFKA_PATH";
     private static final String CASTLE_OUTPUT_DIRECTORY = "CASTLE_OUTPUT_DIRECTORY";
     private static final String CASTLE_OUTPUT_DIRECTORY_DEFAULT = "/tmp/castle";
     private static final String CASTLE_VERBOSE = "CASTLE_VERBOSE";
@@ -163,20 +161,6 @@ public final class CastleTool {
             .metavar(CASTLE_CLUSTER_OUTPUT_PATH)
             .setDefault(getEnv(CASTLE_CLUSTER_OUTPUT_PATH, ""))
             .help("The path to use when writing a new castle cluster file.");
-        parser.addArgument("-t", "--timeout")
-            .action(store())
-            .type(Integer.class)
-            .dest(CASTLE_TIMEOUT_SECONDS)
-            .metavar(CASTLE_TIMEOUT_SECONDS)
-            .setDefault(getEnvInt(CASTLE_TIMEOUT_SECONDS, 360000))
-            .help("The timeout in seconds.");
-        parser.addArgument("--kafka-path")
-            .action(store())
-            .type(String.class)
-            .dest(CASTLE_KAFKA_PATH)
-            .metavar(CASTLE_KAFKA_PATH)
-            .setDefault(getEnv(CASTLE_KAFKA_PATH, ""))
-            .help("The path to the Kafka directory.");
         parser.addArgument("-o", "--output-directory")
             .action(store())
             .type(String.class)
@@ -218,8 +202,6 @@ public final class CastleTool {
             CastleEnvironment env = new CastleEnvironment(
                     res.getString(CASTLE_CLUSTER_INPUT_PATH),
                     clusterOutputPath,
-                    res.getInt(CASTLE_TIMEOUT_SECONDS),
-                    res.getString(CASTLE_KAFKA_PATH),
                     res.getString(CASTLE_OUTPUT_DIRECTORY));
             File clusterInputPath = new File(env.clusterInputPath());
             CastleClusterSpec clusterSpec = readClusterSpec(clusterInputPath);
@@ -239,7 +221,7 @@ public final class CastleTool {
                 } else {
                     try (ActionScheduler scheduler = cluster.createScheduler(targets,
                         ActionRegistry.INSTANCE.actions(cluster.nodes().keySet()))) {
-                        scheduler.await(env.timeoutSecs(), TimeUnit.SECONDS);
+                        scheduler.await(cluster.conf().globalTimeout(), TimeUnit.SECONDS);
                     }
                 }
                 cluster.shutdownManager().shutdown();

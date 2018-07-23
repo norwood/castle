@@ -45,6 +45,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * The CastleCluster.
  */
 public final class CastleCluster implements AutoCloseable {
+    private final CastleClusterConf conf;
     private final CastleEnvironment env;
     private final CastleLog clusterLog;
     private final ConcurrentHashMap<String, Cloud> cloudCache;
@@ -54,6 +55,7 @@ public final class CastleCluster implements AutoCloseable {
 
     public CastleCluster(CastleEnvironment env, CastleLog clusterLog,
                        CastleClusterSpec spec) throws Exception {
+        this.conf = spec.conf();
         this.env = env;
         this.clusterLog = clusterLog;
         this.cloudCache = new ConcurrentHashMap<>();
@@ -87,6 +89,10 @@ public final class CastleCluster implements AutoCloseable {
             }
         }
         return cloud;
+    }
+
+    public CastleClusterConf conf() {
+        return conf;
     }
 
     public CastleLog clusterLog() {
@@ -242,7 +248,7 @@ public final class CastleCluster implements AutoCloseable {
             }
             nodeSpecs.put(node.nodeName(), new CastleNodeSpec(roleNames));
         }
-        return new CastleClusterSpec(nodeSpecs, roles);
+        return new CastleClusterSpec(conf, nodeSpecs, roles);
     }
 
     /**

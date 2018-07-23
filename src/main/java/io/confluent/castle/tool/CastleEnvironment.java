@@ -22,17 +22,12 @@ import java.nio.file.Paths;
 public final class CastleEnvironment {
     private final String clusterInputPath;
     private final String clusterOutputPath;
-    private final int timeoutSecs;
-    private final String kafkaPath;
     private final String outputDirectory;
 
     public CastleEnvironment(String clusterInputPath, String clusterOutputPath,
-                           int timeoutSecs, String kafkaPath,
                            String outputDirectory) {
         this.clusterInputPath = toAbsolutePath(clusterInputPath);
         this.clusterOutputPath = toAbsolutePath(clusterOutputPath);
-        this.timeoutSecs = timeoutSecs;
-        this.kafkaPath = toAbsolutePath(kafkaPath);
         this.outputDirectory = toAbsolutePath(outputDirectory);
     }
 
@@ -49,14 +44,6 @@ public final class CastleEnvironment {
 
     public String clusterOutputPath() {
         return clusterOutputPath;
-    }
-
-    public int timeoutSecs() {
-        return timeoutSecs;
-    }
-
-    public String kafkaPath() {
-        return kafkaPath;
     }
 
     public String outputDirectory() {

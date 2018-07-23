@@ -37,9 +37,10 @@ public final class SourceSetupAction extends Action {
 
     @Override
     public void call(CastleCluster cluster, CastleNode node) throws Throwable {
+        cluster.conf().validateKafkaPath();
         node.cloud().remoteCommand(node).args(setupDirectoryCommand()).mustRun();
         node.cloud().remoteCommand(node).
-            syncTo(cluster.env().kafkaPath() + "/", ActionPaths.KAFKA_SRC + "/").
+            syncTo(cluster.conf().kafkaPath() + "/", ActionPaths.KAFKA_SRC + "/").
             mustRun();
     }
 

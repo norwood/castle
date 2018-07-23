@@ -29,12 +29,16 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class CastleClusterSpec {
+    private final CastleClusterConf conf;
     private final Map<String, CastleNodeSpec> nodes;
     private final Map<String, Role> roles;
 
     @JsonCreator
-    public CastleClusterSpec(@JsonProperty("nodes") Map<String, CastleNodeSpec> nodes,
-                           @JsonProperty("roles") Map<String, Role> roles) throws Exception {
+    public CastleClusterSpec(@JsonProperty("conf") CastleClusterConf conf,
+                             @JsonProperty("nodes") Map<String, CastleNodeSpec> nodes,
+                             @JsonProperty("roles") Map<String, Role> roles) throws Exception {
+        this.conf = (conf == null) ?
+            new CastleClusterConf(null, null, 0) : conf;
         if (nodes == null) {
             this.nodes = Collections.emptyMap();
         } else {
@@ -51,6 +55,11 @@ public class CastleClusterSpec {
         }
         this.roles = Collections.unmodifiableMap(
             (roles == null) ? new HashMap<>() : new HashMap<>(roles));
+    }
+
+    @JsonProperty
+    public CastleClusterConf conf() {
+        return conf;
     }
 
     @JsonProperty
