@@ -23,8 +23,8 @@
 
     <Match>
         <!-- Don't warn about CompletableFuture#complete(null) -->
-        <Class name="io.confluent.common.CastleUtil"/>
+        <Class name="io.confluent.castle.common.CastleUtil"/>
         <Method name="completeNull"/>
-        <Bug pattern="NP_NULL_PARAM_DEREF"/>
+        <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
     </Match>
 </FindBugsFilter>
