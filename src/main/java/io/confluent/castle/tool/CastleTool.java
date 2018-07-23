@@ -35,6 +35,7 @@ import io.confluent.castle.common.CastleLog;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -57,9 +58,8 @@ public final class CastleTool {
     }
 
     private static final String CASTLE_CLUSTER_INPUT_PATH = "CASTLE_CLUSTER_INPUT_PATH";
-    private static final String CASTLE_CLUSTER_OUTPUT_PATH = "CASTLE_CLUSTER_OUTPUT_PATH";
     private static final String CASTLE_TARGETS = "CASTLE_TARGETS";
-    private static final String CASTLE_OUTPUT_DIRECTORY = "CASTLE_OUTPUT_DIRECTORY";
+    private static final String CASTLE_WORKING_DIRECTORY = "CASTLE_WORKING_DIRECTORY";
     private static final String CASTLE_OUTPUT_DIRECTORY_DEFAULT = "/tmp/castle";
     private static final String CASTLE_VERBOSE = "CASTLE_VERBOSE";
     private static final boolean CASTLE_VERBOSE_DEFAULT = false;
@@ -90,19 +90,6 @@ public final class CastleTool {
         String val = System.getenv(name);
         if (val != null) {
             return val;
-        }
-        return defaultValue;
-    }
-
-    private static int getEnvInt(String name, Integer defaultValue) {
-        String val = System.getenv(name);
-        if (val != null) {
-            try {
-                return Integer.parseInt(val);
-            } catch (NumberFormatException e) {
-                throw new RuntimeException("Unable to parse value " + name +
-                        " given for " + name, e);
-            }
         }
         return defaultValue;
     }
@@ -147,34 +134,20 @@ public final class CastleTool {
             .defaultHelp(true)
             .description(CASTLE_DESCRIPTION);
 
-        parser.addArgument("-c", "--cluster-input")
+        parser.addArgument("-c", "--cluster")
             .action(store())
             .type(String.class)
             .dest(CASTLE_CLUSTER_INPUT_PATH)
             .metavar(CASTLE_CLUSTER_INPUT_PATH)
-            .setDefault(getEnv(CASTLE_CLUSTER_INPUT_PATH, ""))
-            .help("The path to the castle cluster file to read.");
-        parser.addArgument("-r", "--cluster-output")
+            .setDefault("")
+            .help("The cluster file to use.");
+        parser.addArgument("-w", "--working-directory")
             .action(store())
             .type(String.class)
-            .dest(CASTLE_CLUSTER_OUTPUT_PATH)
-            .metavar(CASTLE_CLUSTER_OUTPUT_PATH)
-            .setDefault(getEnv(CASTLE_CLUSTER_OUTPUT_PATH, ""))
-            .help("The path to use when writing a new castle cluster file.");
-        parser.addArgument("-o", "--output-directory")
-            .action(store())
-            .type(String.class)
-            .dest(CASTLE_OUTPUT_DIRECTORY)
-            .metavar(CASTLE_OUTPUT_DIRECTORY)
-            .setDefault(getEnv(CASTLE_OUTPUT_DIRECTORY, CASTLE_OUTPUT_DIRECTORY_DEFAULT))
+            .required(true)
+            .dest(CASTLE_WORKING_DIRECTORY)
+            .metavar(CASTLE_WORKING_DIRECTORY)
             .help("The output path to store logs, cluster files, and other outputs in.");
-        parser.addArgument("target")
-            .nargs("*")
-            .action(store())
-            .required(false)
-            .dest(CASTLE_TARGETS)
-            .metavar(CASTLE_TARGETS)
-            .help("The target action(s) to run.");
         parser.addArgument("-v")
             .action(storeTrue())
             .type(Boolean.class)
@@ -183,6 +156,13 @@ public final class CastleTool {
             .metavar(CASTLE_VERBOSE)
             .setDefault(getEnvBoolean(CASTLE_VERBOSE, CASTLE_VERBOSE_DEFAULT))
             .help("Enable verbose logging.");
+        parser.addArgument("target")
+            .nargs("*")
+            .action(store())
+            .required(false)
+            .dest(CASTLE_TARGETS)
+            .metavar(CASTLE_TARGETS)
+            .help("The target action(s) to run.");
 
         try {
             Namespace res = parser.parseArgsOrFail(args);
@@ -191,21 +171,25 @@ public final class CastleTool {
                 parser.printHelp();
                 System.exit(0);
             }
-            String clusterOutputPath = res.getString(CASTLE_CLUSTER_OUTPUT_PATH);
-            if (clusterOutputPath.isEmpty()) {
-                clusterOutputPath = Paths.get(res.getString(CASTLE_OUTPUT_DIRECTORY),
-                    "cluster.json").toAbsolutePath().toString();
+            String workingDirectory = res.getString(CASTLE_WORKING_DIRECTORY);
+            String clusterPath = res.getString(CASTLE_CLUSTER_INPUT_PATH);
+            Path defaultClusterConfPath = Paths.get(workingDirectory, CastleEnvironment.CLUSTER_FILE_NAME);
+            if (defaultClusterConfPath.toFile().exists()) {
+                if (!clusterPath.isEmpty()) {
+                    throw new RuntimeException("A cluster file named " +
+                        defaultClusterConfPath.toString() + " exists in your working directory.  " +
+                        "You must not specify a cluster path with -c or --cluster.");
+                }
+                clusterPath = defaultClusterConfPath.toAbsolutePath().toString();
+            } else if (clusterPath.isEmpty()) {
+                throw new RuntimeException("You must specify a cluster with with -c or --cluster.");
+            } else if (!new File(clusterPath).exists()) {
+                throw new RuntimeException("The specified cluster path " + clusterPath +
+                    " does not exist.");
             }
-            if (res.getString(CASTLE_CLUSTER_INPUT_PATH).isEmpty()) {
-                throw new RuntimeException("Unable to You must specify an input cluster file using -c.");
-            }
-            CastleEnvironment env = new CastleEnvironment(
-                    res.getString(CASTLE_CLUSTER_INPUT_PATH),
-                    clusterOutputPath,
-                    res.getString(CASTLE_OUTPUT_DIRECTORY));
-            File clusterInputPath = new File(env.clusterInputPath());
-            CastleClusterSpec clusterSpec = readClusterSpec(clusterInputPath);
-            Files.createDirectories(Paths.get(env.outputDirectory()));
+            Files.createDirectories(Paths.get(workingDirectory));
+            CastleEnvironment env = new CastleEnvironment(clusterPath, workingDirectory);
+            CastleClusterSpec clusterSpec = readClusterSpec(new File(clusterPath));
             CastleLog clusterLog = CastleLog.fromStdout("cluster", res.getBoolean(CASTLE_VERBOSE));
 
             CastleReturnCode exitCode;

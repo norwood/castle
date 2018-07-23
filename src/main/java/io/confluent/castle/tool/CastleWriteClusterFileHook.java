@@ -32,7 +32,7 @@ public class CastleWriteClusterFileHook extends CastleShutdownHook {
     @Override
     public void run(CastleReturnCode returnCode) throws Throwable {
         if (returnCode == CastleReturnCode.SUCCESS) {
-            String path = cluster.env().clusterOutputPath();
+            String path = cluster.env().workingDirectory();
             CastleTool.JSON_SERDE.writeValue(new File(path), cluster.toSpec());
             cluster.clusterLog().printf("*** Wrote new cluster file to %s%n", path);
         }

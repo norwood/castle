@@ -89,7 +89,7 @@ public class ZooKeeperStartAction extends Action  {
         OutputStreamWriter osw = null;
         boolean success = false;
         try {
-            file = new File(cluster.env().outputDirectory(),
+            file = new File(cluster.env().workingDirectory(),
                 String.format("zookeeper-%d.properties", node.nodeIndex()));
             fos = new FileOutputStream(file, false);
             osw = new OutputStreamWriter(fos, StandardCharsets.UTF_8);
@@ -115,7 +115,7 @@ public class ZooKeeperStartAction extends Action  {
         OutputStreamWriter osw = null;
         boolean success = false;
         try {
-            file = new File(cluster.env().outputDirectory(),
+            file = new File(cluster.env().workingDirectory(),
                 String.format("zookeeper-log4j-%d.properties", node.nodeIndex()));
             fos = new FileOutputStream(file, false);
             osw = new OutputStreamWriter(fos, StandardCharsets.UTF_8);

@@ -3,7 +3,7 @@
     "kafkaPath": "%{CASTLE_KAFKA_PATH}",
     "castlePath": "%{CASTLE_PATH}",
     "globalTimeout": 3600
-  }
+  },
   "nodes": {
     "node0": {
       "roleNames": [

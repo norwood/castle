@@ -20,15 +20,14 @@ package io.confluent.castle.tool;
 import java.nio.file.Paths;
 
 public final class CastleEnvironment {
-    private final String clusterInputPath;
-    private final String clusterOutputPath;
-    private final String outputDirectory;
+    public static String CLUSTER_FILE_NAME = "cluster.conf";
+    private final String clusterPath;
+    private final String workingDirectory;
 
-    public CastleEnvironment(String clusterInputPath, String clusterOutputPath,
-                           String outputDirectory) {
-        this.clusterInputPath = toAbsolutePath(clusterInputPath);
-        this.clusterOutputPath = toAbsolutePath(clusterOutputPath);
-        this.outputDirectory = toAbsolutePath(outputDirectory);
+    public CastleEnvironment(String clusterPath,
+                           String workingDirectory) {
+        this.clusterPath = toAbsolutePath(clusterPath);
+        this.workingDirectory = toAbsolutePath(workingDirectory);
     }
 
     private String toAbsolutePath(String path) {
@@ -38,15 +37,15 @@ public final class CastleEnvironment {
         return Paths.get(path).toAbsolutePath().toString();
     }
 
-    public String clusterInputPath() {
-        return clusterInputPath;
+    public String clusterPath() {
+        return clusterPath;
+    }
+
+    public String workingDirectory() {
+        return workingDirectory;
     }
 
     public String clusterOutputPath() {
-        return clusterOutputPath;
-    }
-
-    public String outputDirectory() {
-        return outputDirectory;
+        return Paths.get(workingDirectory, CLUSTER_FILE_NAME).toAbsolutePath().toString();
     }
 };

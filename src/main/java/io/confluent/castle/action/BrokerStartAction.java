@@ -121,7 +121,7 @@ public final class BrokerStartAction extends Action {
         boolean success = false;
         Map<String, String> effectiveConf = CastleUtil.mergeConfig(role.conf(), getDefaultConf());
         try {
-            file = new File(cluster.env().outputDirectory(), String.format("broker-%d.properties",
+            file = new File(cluster.env().workingDirectory(), String.format("broker-%d.properties",
                 node.nodeIndex()));
             fos = new FileOutputStream(file, false);
             osw = new OutputStreamWriter(fos, StandardCharsets.UTF_8);
@@ -153,7 +153,7 @@ public final class BrokerStartAction extends Action {
         OutputStreamWriter osw = null;
         boolean success = false;
         try {
-            file = new File(cluster.env().outputDirectory(), String.format("broker-log4j-%d.properties",
+            file = new File(cluster.env().workingDirectory(), String.format("broker-log4j-%d.properties",
                 node.nodeIndex()));
             fos = new FileOutputStream(file, false);
             osw = new OutputStreamWriter(fos, StandardCharsets.UTF_8);

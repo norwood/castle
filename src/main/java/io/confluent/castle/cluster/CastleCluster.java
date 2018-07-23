@@ -65,7 +65,7 @@ public final class CastleCluster implements AutoCloseable {
         for (Map.Entry<String, Map<Class<? extends Role>, Role>> e : nodesToRoles.entrySet()) {
             String nodeName = e.getKey();
             Map<Class<? extends Role>, Role> roleMap = e.getValue();
-            CastleLog castleLog = CastleLog.fromFile(env.outputDirectory(), nodeName, true);
+            CastleLog castleLog = CastleLog.fromFile(env.workingDirectory(), nodeName, true);
             CastleNode node = new CastleNode(clusterLog, nodeIndex, nodeName, castleLog,
                 roleMap, getNodeCloud(nodeName, roleMap.values()));
             nodes.put(nodeName, node);

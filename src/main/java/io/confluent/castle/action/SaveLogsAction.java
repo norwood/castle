@@ -46,13 +46,13 @@ public final class SaveLogsAction extends Action {
             node.log().printf("*** Skipping saveLogs, because the node has no DNS address.%n");
             return;
         }
-        Files.createDirectories(Paths.get(cluster.env().outputDirectory(),
+        Files.createDirectories(Paths.get(cluster.env().workingDirectory(),
             "logs", node.nodeName()));
         int lsStatus = node.cloud().remoteCommand(node).args("ls", ActionPaths.LOGS_ROOT).run();
         if (lsStatus == 0) {
             node.cloud().remoteCommand(node).
                 syncFrom(ActionPaths.LOGS_ROOT + "/",
-                    cluster.env().outputDirectory() + "/logs/" + node.nodeName() + "/").
+                    cluster.env().workingDirectory() + "/logs/" + node.nodeName() + "/").
                 mustRun();
         } else if ((lsStatus == 1) || (lsStatus == 2)) {
             node.log().printf("*** Skipping saveLogs, because %s was not found.%n", ActionPaths.LOGS_ROOT);

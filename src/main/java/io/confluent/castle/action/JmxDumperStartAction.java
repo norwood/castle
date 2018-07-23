@@ -71,7 +71,7 @@ public final class JmxDumperStartAction extends Action {
     }
 
     private File writeJmxDumperConf(CastleCluster cluster, CastleNode node) throws IOException {
-        File file = new File(cluster.env().outputDirectory(),
+        File file = new File(cluster.env().workingDirectory(),
                 String.format("jmx-dumper-%d.conf", node.nodeIndex()));
         CastleTool.JSON_SERDE.writeValue(file, conf);
         return file;

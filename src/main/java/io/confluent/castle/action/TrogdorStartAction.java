@@ -94,7 +94,7 @@ public class TrogdorStartAction extends Action  {
         OutputStreamWriter osw = null;
         boolean success = false;
         try {
-            file = new File(cluster.env().outputDirectory(),
+            file = new File(cluster.env().workingDirectory(),
                 String.format("trogdor-%s-%d.conf", daemonType.name(), node.nodeIndex()));
             fos = new FileOutputStream(file, false);
             osw = new OutputStreamWriter(fos, StandardCharsets.UTF_8);
@@ -134,7 +134,7 @@ public class TrogdorStartAction extends Action  {
         OutputStreamWriter osw = null;
         boolean success = false;
         try {
-            file = new File(cluster.env().outputDirectory(),
+            file = new File(cluster.env().workingDirectory(),
                 String.format("trogdor-%s-log4j-%d.properties",
                     daemonType.name(), node.nodeIndex()));
             fos = new FileOutputStream(file, false);

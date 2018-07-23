@@ -77,7 +77,7 @@ public final class CollectdStartAction extends Action {
         OutputStreamWriter osw = null;
         boolean success = false;
         try {
-            file = new File(cluster.env().outputDirectory(), String.format("collected-%d.conf",
+            file = new File(cluster.env().workingDirectory(), String.format("collected-%d.conf",
                 node.nodeIndex()));
             fos = new FileOutputStream(file, false);
             osw = new OutputStreamWriter(fos, StandardCharsets.UTF_8);
