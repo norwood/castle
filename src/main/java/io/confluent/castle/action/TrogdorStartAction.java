@@ -20,6 +20,7 @@ package io.confluent.castle.action;
 import io.confluent.castle.cluster.CastleCluster;
 import io.confluent.castle.cluster.CastleNode;
 import io.confluent.castle.common.CastleUtil;
+import io.confluent.castle.role.TrogdorAgentRole;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -105,12 +106,14 @@ public class TrogdorStartAction extends Action  {
             for (Map.Entry<String, CastleNode> entry : cluster.nodes().entrySet()) {
                 String nodeName = entry.getKey();
                 CastleNode castleNode = entry.getValue();
-                osw.write(String.format("%s    \"%s\": {%n", prefix, nodeName));
-                prefix = String.format(",%n");
-                osw.write(String.format("      \"hostname\": \"%s\",%n",
-                    castleNode.privateDns()));
-                osw.write(String.format("      \"trogdor.agent.port\": 8888%n"));
-                osw.write(String.format("    }"));
+                if (castleNode.getRole(TrogdorAgentRole.class) != null) {
+                    osw.write(String.format("%s    \"%s\": {%n", prefix, nodeName));
+                    prefix = String.format(",%n");
+                    osw.write(String.format("      \"hostname\": \"%s\",%n",
+                        castleNode.privateDns()));
+                    osw.write(String.format("      \"trogdor.agent.port\": 8888%n"));
+                    osw.write(String.format("    }"));
+                }
             }
             osw.write(String.format("%n"));
             osw.write(String.format("  }%n"));
