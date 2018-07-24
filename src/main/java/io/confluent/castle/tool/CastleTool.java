@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import io.confluent.castle.common.CastleUtil;
+import io.confluent.castle.common.JsonConfigFile;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.Namespace;
@@ -60,7 +61,6 @@ public final class CastleTool {
     private static final String CASTLE_CLUSTER_INPUT_PATH = "CASTLE_CLUSTER_INPUT_PATH";
     private static final String CASTLE_TARGETS = "CASTLE_TARGETS";
     private static final String CASTLE_WORKING_DIRECTORY = "CASTLE_WORKING_DIRECTORY";
-    private static final String CASTLE_OUTPUT_DIRECTORY_DEFAULT = "/tmp/castle";
     private static final String CASTLE_VERBOSE = "CASTLE_VERBOSE";
     private static final boolean CASTLE_VERBOSE_DEFAULT = false;
     private static final String CASTLE_PREFIX = "CASTLE_";
@@ -122,8 +122,8 @@ public final class CastleTool {
         }
     }
 
-    private static CastleClusterSpec readClusterSpec(File clusterInputPath) throws Throwable {
-        JsonNode confNode = CastleTool.JSON_SERDE.readTree(clusterInputPath);
+    private static CastleClusterSpec readClusterSpec(String clusterInputPath) throws Throwable {
+        JsonNode confNode = new JsonConfigFile(clusterInputPath).jsonNode();
         JsonNode transofmredConfNode = JsonTransformer.transform(confNode, new CastleSubstituter());
         return CastleTool.JSON_SERDE.treeToValue(transofmredConfNode, CastleClusterSpec.class);
     }
@@ -189,7 +189,7 @@ public final class CastleTool {
             }
             Files.createDirectories(Paths.get(workingDirectory));
             CastleEnvironment env = new CastleEnvironment(clusterPath, workingDirectory);
-            CastleClusterSpec clusterSpec = readClusterSpec(new File(clusterPath));
+            CastleClusterSpec clusterSpec = readClusterSpec(clusterPath);
             CastleLog clusterLog = CastleLog.fromStdout("cluster", res.getBoolean(CASTLE_VERBOSE));
 
             CastleReturnCode exitCode;
