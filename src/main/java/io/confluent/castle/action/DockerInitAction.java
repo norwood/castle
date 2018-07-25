@@ -17,27 +17,24 @@
 
 package io.confluent.castle.action;
 
+import io.confluent.castle.role.DockerNodeRole;
 import io.confluent.castle.cluster.CastleCluster;
 import io.confluent.castle.cluster.CastleNode;
-import io.confluent.castle.role.AwsNodeRole;
 import io.confluent.castle.tool.CastleReturnCode;
 import io.confluent.castle.tool.CastleShutdownHook;
 import io.confluent.castle.tool.CastleTool;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 /**
- * Initiates a new AWS node.
+ * Initiates a new Docker node.
  */
-public final class AwsInitAction extends Action {
-    public final static String TYPE = "awsInit";
+public final class DockerInitAction extends Action {
+    public final static String TYPE = "dockerInit";
 
-    private final AwsNodeRole role;
+    private final DockerNodeRole role;
 
-    public AwsInitAction(String scope, AwsNodeRole role) {
+    public DockerInitAction(String scope, DockerNodeRole role) {
         super(new ActionId(TYPE, scope),
             new TargetId[] {},
             new String[] {},
@@ -52,10 +49,10 @@ public final class AwsInitAction extends Action {
                 " already exists.");
         }
 
-        // Make sure that we don't leak an AWS instance if we shut down unexpectedly.
-        cluster.shutdownManager().addHookIfMissing(new DestroyAwsInstancesShutdownHook(cluster));
+        // Make sure that we don't leak a Docker instance if we shut down unexpectedly.
+        cluster.shutdownManager().addHookIfMissing(new DestroyDockerInstancesShutdownHook(cluster));
 
-        // Start up the AWS instance.
+        // Start up the Docker instance.
         node.uplink().startup();
 
         // Write out the new cluster file.
@@ -63,13 +60,13 @@ public final class AwsInitAction extends Action {
     }
 
     /**
-     * Destroys an AWS instance on shutdown.
+     * Destroys Docker instances on shutdown.
      */
-    public static final class DestroyAwsInstancesShutdownHook extends CastleShutdownHook {
+    public static final class DestroyDockerInstancesShutdownHook extends CastleShutdownHook {
         private final CastleCluster cluster;
 
-        DestroyAwsInstancesShutdownHook(CastleCluster cluster) {
-            super("DestroyAwsInstancesShutdownHook");
+        DestroyDockerInstancesShutdownHook(CastleCluster cluster) {
+            super("DestroyDockerInstancesShutdownHook");
             this.cluster = cluster;
         }
 
@@ -91,15 +88,13 @@ public final class AwsInitAction extends Action {
         }
 
         private synchronized void terminateInstances() throws Throwable {
-            List<CompletableFuture<Void>> futures = new ArrayList<>();
             for (CastleNode node : cluster.nodes().values()) {
-                AwsNodeRole awsRole = node.getRole(AwsNodeRole.class);
-                if ((awsRole != null) && (!awsRole.instanceId().isEmpty())) {
-                    futures.add(node.uplink().shutdown());
+                DockerNodeRole dockerRole = node.getRole(DockerNodeRole.class);
+                if ((dockerRole != null) && (!dockerRole.containerName().isEmpty())) {
+                    node.uplink().shutdown().get();
                 }
             }
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
-            cluster.clusterLog().info("*** Terminated AWS nodes.");
+            cluster.clusterLog().info("*** Terminated docker nodes.");
         }
     }
 }

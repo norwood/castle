@@ -15,21 +15,28 @@
  * limitations under the License.
  */
 
-package io.confluent.castle.action;
+package io.confluent.castle.command;
 
-/**
- * Initiates a new node.
- */
-public final class InitAction extends Action {
-    public final static String TYPE = "init";
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
-    public InitAction(String scope) {
-        super(new ActionId(TYPE, scope),
-            new TargetId[] {},
-            new String[] {
-                AwsInitAction.TYPE,
-                DockerInitAction.TYPE,
-            },
-            0);
+public class CommandResultException extends RuntimeException {
+    private final List<String> commandLine;
+    private final int returnCode;
+
+    public CommandResultException(List<String> commandLine, int returnCode) {
+        super(String.format("%s failed with error code %d",
+            Command.joinArgs(commandLine), returnCode));
+        this.commandLine = Collections.unmodifiableList(new ArrayList<>(commandLine));
+        this.returnCode = returnCode;
+    }
+
+    public List<String> commandLine() {
+        return commandLine;
+    }
+
+    public int returnCode() {
+        return returnCode;
     }
 }

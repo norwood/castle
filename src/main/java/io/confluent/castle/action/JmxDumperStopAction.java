@@ -37,8 +37,8 @@ public final class JmxDumperStopAction extends Action {
 
     @Override
     public void call(CastleCluster cluster, CastleNode node) throws Throwable {
-        if (node.dns().isEmpty()) {
-            node.log().printf("*** Skipping jmxStop, because the node has no DNS address.%n");
+        if (node.uplink() == null) {
+            node.log().printf("*** Skipping jmxStop, because the node is not running.%n");
             return;
         }
         CastleUtil.killJavaProcess(cluster, node, JmxDumperRole.CLASS_NAME, false);

@@ -20,19 +20,28 @@ package io.confluent.castle.role;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.confluent.castle.action.Action;
-import io.confluent.castle.action.AwsCheckAction;
 import io.confluent.castle.action.AwsDestroyAction;
 import io.confluent.castle.action.AwsInitAction;
-import io.confluent.castle.cloud.Cloud;
+import io.confluent.castle.action.SaveLogsAction;
+import io.confluent.castle.action.SourceSetupAction;
+import io.confluent.castle.cloud.CloudCache;
 import io.confluent.castle.cloud.Ec2Cloud;
+import io.confluent.castle.cloud.Ec2Settings;
+import io.confluent.castle.cluster.CastleCluster;
+import io.confluent.castle.cluster.CastleNode;
+import io.confluent.castle.uplink.Ec2Uplink;
+import io.confluent.castle.uplink.Uplink;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
-public class AwsNodeRole implements Role {
+public class AwsNodeRole implements Role, UplinkRole {
     private final int initialDelayMs;
+
+    private static final String IMAGE_ID_DEFAULT = "ami-29ebb519";
+
+    private static final String INSTANCE_TYPE_DEFAULT = "m1.small";
 
     /**
      * The AWS keypair to use.
@@ -118,8 +127,8 @@ public class AwsNodeRole implements Role {
         this.initialDelayMs = initialDelayMs;
         this.keyPair = keyPair == null ? "" : keyPair;
         this.securityGroup = securityGroup == null ? "" : securityGroup;
-        this.imageId = imageId == null ? "" : imageId;
-        this.instanceType = instanceType == null ? "" : instanceType;
+        this.imageId = imageId == null ? IMAGE_ID_DEFAULT : imageId;
+        this.instanceType = instanceType == null ? INSTANCE_TYPE_DEFAULT : instanceType;
         this.sshIdentityFile = sshIdentityFile == null ? "" : sshIdentityFile;
         this.sshUser = sshUser == null ? "" : sshUser;
         this.sshPort = sshPort;
@@ -213,7 +222,9 @@ public class AwsNodeRole implements Role {
         ArrayList<Action> actions = new ArrayList<>();
         actions.add(new AwsInitAction(nodeName, this));
         actions.add(new AwsDestroyAction(nodeName, this));
-        actions.add(new AwsCheckAction(nodeName, this));
+        actions.add(new SaveLogsAction(nodeName));
+        actions.add(new SourceSetupAction(nodeName));
+        actions.add(new AwsDestroyAction(nodeName, this));
         return actions;
     }
 
@@ -226,13 +237,15 @@ public class AwsNodeRole implements Role {
     }
 
     @Override
-    public Cloud cloud(ConcurrentHashMap<String, Cloud> cloudCache) {
-        Ec2Cloud.Settings settings = new Ec2Cloud.Settings(keyPair, securityGroup, region);
-        return cloudCache.computeIfAbsent(settings.toString(), new Function<String, Cloud>() {
-            @Override
-            public Cloud apply(String s) {
-                return new Ec2Cloud(settings);
-            }
-        });
+    public Uplink createUplink(CastleCluster cluster, CastleNode node) {
+        Ec2Settings settings = new Ec2Settings(keyPair, securityGroup, region);
+        Ec2Cloud cloud = cluster.cloudCache().getOrCreate(settings.toString(),
+            new Function<Void, Ec2Cloud>() {
+                @Override
+                public Ec2Cloud apply(Void v) {
+                    return new Ec2Cloud(settings);
+                }
+            });
+        return new Ec2Uplink(this, cluster, node, cloud);
     }
 };

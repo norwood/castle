@@ -30,7 +30,8 @@ public final class DestroyAction extends Action {
                 new TargetId(StopAction.TYPE, scope)
             },
             new String[] {
-                AwsDestroyAction.TYPE
+                AwsDestroyAction.TYPE,
+                DockerDestroyAction.TYPE,
             },
             0);
     }

@@ -15,21 +15,14 @@
  * limitations under the License.
  */
 
-package io.confluent.castle.action;
+package io.confluent.castle.command;
 
 /**
- * Initiates a new node.
+ * Manages a local port which is bound to a port on a CastleNode.
  */
-public final class InitAction extends Action {
-    public final static String TYPE = "init";
-
-    public InitAction(String scope) {
-        super(new ActionId(TYPE, scope),
-            new TargetId[] {},
-            new String[] {
-                AwsInitAction.TYPE,
-                DockerInitAction.TYPE,
-            },
-            0);
-    }
+public interface PortAccessor extends AutoCloseable {
+    /**
+     * Gets the local port.
+     */
+    int port();
 }

@@ -25,9 +25,6 @@ import io.confluent.castle.common.CastleUtil;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.Namespace;
-import org.apache.kafka.common.internals.KafkaFutureImpl;
-import org.apache.kafka.common.utils.Time;
-import org.apache.kafka.common.utils.Utils;
 
 import javax.management.Attribute;
 import javax.management.InstanceNotFoundException;
@@ -52,6 +49,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -293,7 +291,7 @@ public final class JmxDumper {
                     for (String attribute : object.attributes()) {
                         if (!attributeList.contains(attribute)) {
                             throw new RuntimeException("Unable to find attribute " + attribute + " for " +
-                                object.name() + ".  Found: " + Utils.mkList(attributeList));
+                                object.name() + ".  Found: " + String.join(", ", attributeList));
                         }
                     }
                     objectNameToAttributes.put(object.name(), object.attributes());
@@ -323,7 +321,7 @@ public final class JmxDumper {
     public final class StoreJmx implements Runnable {
         @Override
         public void run() {
-            long time = Time.SYSTEM.milliseconds();
+            long time = System.currentTimeMillis();
             try {
                 for (CsvFile csvFile : csvFiles) {
                     csvFile.storeJmx(time);
@@ -360,7 +358,7 @@ public final class JmxDumper {
     }
 
     static final class Completer {
-        private KafkaFutureImpl<Void> future = new KafkaFutureImpl<>();
+        private CompletableFuture<Void> future = new CompletableFuture<>();
         private AtomicInteger count;
 
         Completer(int count) {
@@ -369,7 +367,7 @@ public final class JmxDumper {
 
         void countDown() {
             if (count.decrementAndGet() <= 0) {
-                future.complete(null);
+                CastleUtil.completeNull(future);
             }
         }
 

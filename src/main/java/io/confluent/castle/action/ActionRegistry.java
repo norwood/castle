@@ -36,13 +36,12 @@ public class ActionRegistry {
         INSTANCE.register(DownAction.class);
         INSTANCE.register(InitAction.class);
         INSTANCE.register(LinuxSetupAction.class);
-        INSTANCE.register(SaveLogsAction.class);
         INSTANCE.register(SetupAction.class);
-        INSTANCE.register(SourceSetupAction.class);
         INSTANCE.register(StartAction.class);
         INSTANCE.register(StatusAction.class);
         INSTANCE.register(StopAction.class);
         INSTANCE.register(UpAction.class);
+        INSTANCE.register(NodeCheckAction.class);
     }
 
     private final List<Class<? extends Action>> classes = new ArrayList<>();

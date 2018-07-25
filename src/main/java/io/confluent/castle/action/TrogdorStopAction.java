@@ -37,8 +37,8 @@ public final class TrogdorStopAction extends Action {
 
     @Override
     public void call(CastleCluster cluster, CastleNode node) throws Throwable {
-        if (node.dns().isEmpty()) {
-            node.log().printf("*** Skipping trogdorStop, because the node has no DNS address.%n");
+        if (node.uplink() == null) {
+            node.log().printf("*** Skipping trogdorStop, because the node is not running.%n");
             return;
         }
         CastleUtil.killJavaProcess(cluster, node, daemonType.className(), false);

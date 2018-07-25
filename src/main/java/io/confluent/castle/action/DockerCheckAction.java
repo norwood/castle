@@ -19,38 +19,40 @@ package io.confluent.castle.action;
 
 import io.confluent.castle.cluster.CastleCluster;
 import io.confluent.castle.cluster.CastleNode;
+import io.confluent.castle.common.CastleLog;
+import io.confluent.castle.role.DockerNodeRole;
 
 /**
- * Rsyncs the Kafka source directory to the cluster node.
+ * Checks the status of a node's Docker instance.
  */
-public final class SourceSetupAction extends Action {
-    public final static String TYPE = "sourceSetup";
+public final class DockerCheckAction extends Action {
+    public final static String TYPE = "dockerCheck";
 
-    public SourceSetupAction(String scope) {
+    private final DockerNodeRole role;
+
+    public DockerCheckAction(String scope, DockerNodeRole role) {
         super(new ActionId(TYPE, scope),
-            new TargetId[] {
-                new TargetId(LinuxSetupAction.TYPE, scope)
-            },
+            new TargetId[] {},
             new String[] {},
-            0);
+            role.initialDelayMs());
+        this.role = role;
     }
 
     @Override
     public void call(CastleCluster cluster, CastleNode node) throws Throwable {
-        cluster.conf().validateKafkaPath();
-        cluster.conf().validateCastlePath();
-        node.uplink().command().args(setupDirectoriesCommand()).mustRun();
-        node.uplink().command().
-            syncTo(cluster.conf().kafkaPath() + "/", ActionPaths.KAFKA_SRC + "/").
-            mustRun();
-        node.uplink().command().
-            syncTo(cluster.conf().castlePath() + "/", ActionPaths.CASTLE_SRC + "/").
-            mustRun();
-    }
-
-    public static String[] setupDirectoriesCommand() {
-        return new String[] {"sudo", "mkdir", "-p", ActionPaths.KAFKA_SRC, ActionPaths.CASTLE_SRC,
-            ActionPaths.LOGS_ROOT, "&&", "sudo", "chown", "-R", "`whoami`",
-            ActionPaths.KAFKA_SRC, ActionPaths.CASTLE_SRC, ActionPaths.LOGS_ROOT};
+        String[] ps = new String[] {
+            "docker", "ps", "-a", "--no-trunc", "--filter",
+            "'name=^/" + role.containerName() + "$'",
+            "--format", "'{{.Names}}'"
+            };
+        if (node.uplink().command().args(ps).run() != 0) {
+            CastleLog.printToAll(String.format("*** %s: Failed to run docker ps for %s%n",
+                node.nodeName(), role.containerName()),
+                node.log(), cluster.clusterLog());
+        } else {
+            CastleLog.printToAll(String.format("*** %s: %s is running.%n",
+                node.nodeName(), role.containerName()),
+                node.log(), cluster.clusterLog());
+        }
     }
 }

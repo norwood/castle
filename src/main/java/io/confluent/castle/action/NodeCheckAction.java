@@ -15,28 +15,26 @@
  * limitations under the License.
  */
 
-package io.confluent.castle.cloud;
+package io.confluent.castle.action;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import io.confluent.castle.cluster.CastleCluster;
+import io.confluent.castle.cluster.CastleNode;
 
-public class RemoteCommandResultException extends RuntimeException {
-    private final List<String> commandLine;
-    private final int returnCode;
+/**
+ * Checks the status of a node's uplink.
+ */
+public final class NodeCheckAction extends Action {
+    public final static String TYPE = "nodeCheck";
 
-    public RemoteCommandResultException(List<String> commandLine, int returnCode) {
-        super(String.format("%s failed with error code %d",
-            CastleRemoteCommand.joinCommandLineArgs(commandLine), returnCode));
-        this.commandLine = Collections.unmodifiableList(new ArrayList<>(commandLine));
-        this.returnCode = returnCode;
+    public NodeCheckAction(String scope) {
+        super(new ActionId(TYPE, scope),
+            new TargetId[] {},
+            new String[] {},
+            0);
     }
 
-    public List<String> commandLine() {
-        return commandLine;
-    }
-
-    public int returnCode() {
-        return returnCode;
+    @Override
+    public void call(CastleCluster cluster, CastleNode node) throws Throwable {
+        node.uplink().check();
     }
 }

@@ -15,11 +15,14 @@
  * limitations under the License.
  */
 
-package io.confluent.castle.cloud;
+package io.confluent.castle.command;
 
 import java.util.List;
 
-public interface RemoteCommand {
+/**
+ * A command which the Castle tool needs to run.
+ */
+public interface Command {
     enum Operation {
         SSH,
         RSYNC_TO,
@@ -33,7 +36,7 @@ public interface RemoteCommand {
      *
      * @param args                  The arguments to use.
      */
-    RemoteCommand args(String... args);
+    Command args(String... args);
 
     /**
      * Set the command arguments.
@@ -42,7 +45,7 @@ public interface RemoteCommand {
      *
      * @param args                  The arguments to use.
      */
-    RemoteCommand argList(List<String> args);
+    Command argList(List<String> args);
 
     /**
      * Copy files to the remote node.
@@ -52,7 +55,7 @@ public interface RemoteCommand {
      * @param local                 The local path to copy from.
      * @param remote                The remote path to copy to.
      */
-    RemoteCommand syncTo(String local, String remote);
+    Command syncTo(String local, String remote);
 
     /**
      * Copy files from the remote node.
@@ -62,7 +65,7 @@ public interface RemoteCommand {
      * @param remote                The remote path to copy from.
      * @param local                 The local path to copy to.
      */
-    RemoteCommand syncFrom(String remote, String local);
+    Command syncFrom(String remote, String local);
 
     /**
      * Capture the output to the given StringBuilder.
@@ -71,7 +74,7 @@ public interface RemoteCommand {
      *                              captured to.  By default, the output is not
      *                              captured.
      */
-    RemoteCommand captureOutput(StringBuilder stringBuilder);
+    Command captureOutput(StringBuilder stringBuilder);
 
     /**
      * Runs the command.
@@ -94,4 +97,28 @@ public interface RemoteCommand {
      * @throws Exception    If the exec fails.
      */
     void exec() throws Exception;
+
+    /**
+     * Translate a list of command-line arguments into a human-readable string.
+     * Arguments which contain whitespace will be quoted.
+     *
+     * @param args  The argument list.
+     * @return      A human-readable string.
+     */
+    static String joinArgs(List<String> args) {
+        StringBuilder bld = new StringBuilder();
+        String prefix = "";
+        for (String arg : args) {
+            bld.append(prefix);
+            prefix = " ";
+            if (arg.contains(" ")) {
+                bld.append("\"");
+            }
+            bld.append(arg);
+            if (arg.contains(" ")) {
+                bld.append("\"");
+            }
+        }
+        return bld.toString();
+    }
 }

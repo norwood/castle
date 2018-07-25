@@ -20,7 +20,7 @@ package io.confluent.castle.tool;
 import java.nio.file.Paths;
 
 public final class CastleEnvironment {
-    public static String CLUSTER_FILE_NAME = "cluster.conf";
+    public static final String CLUSTER_FILE_NAME = "cluster.conf";
     private final String clusterPath;
     private final String workingDirectory;
 

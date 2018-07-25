@@ -19,38 +19,31 @@ package io.confluent.castle.action;
 
 import io.confluent.castle.cluster.CastleCluster;
 import io.confluent.castle.cluster.CastleNode;
+import io.confluent.castle.role.DockerNodeRole;
+import io.confluent.castle.tool.CastleWriteClusterFileHook;
 
 /**
- * Rsyncs the Kafka source directory to the cluster node.
+ * Destroys a docker node.
  */
-public final class SourceSetupAction extends Action {
-    public final static String TYPE = "sourceSetup";
+public final class DockerDestroyAction extends Action {
+    public final static String TYPE = "dockerDestroy";
 
-    public SourceSetupAction(String scope) {
+    private final DockerNodeRole role;
+
+    public DockerDestroyAction(String scope, DockerNodeRole role) {
         super(new ActionId(TYPE, scope),
-            new TargetId[] {
-                new TargetId(LinuxSetupAction.TYPE, scope)
-            },
+            new TargetId[] {},
             new String[] {},
-            0);
+            role.initialDelayMs());
+        this.role = role;
     }
 
-    @Override
     public void call(CastleCluster cluster, CastleNode node) throws Throwable {
-        cluster.conf().validateKafkaPath();
-        cluster.conf().validateCastlePath();
-        node.uplink().command().args(setupDirectoriesCommand()).mustRun();
-        node.uplink().command().
-            syncTo(cluster.conf().kafkaPath() + "/", ActionPaths.KAFKA_SRC + "/").
-            mustRun();
-        node.uplink().command().
-            syncTo(cluster.conf().castlePath() + "/", ActionPaths.CASTLE_SRC + "/").
-            mustRun();
-    }
-
-    public static String[] setupDirectoriesCommand() {
-        return new String[] {"sudo", "mkdir", "-p", ActionPaths.KAFKA_SRC, ActionPaths.CASTLE_SRC,
-            ActionPaths.LOGS_ROOT, "&&", "sudo", "chown", "-R", "`whoami`",
-            ActionPaths.KAFKA_SRC, ActionPaths.CASTLE_SRC, ActionPaths.LOGS_ROOT};
+        if (!role.containerName().isEmpty()) {
+            node.uplink().shutdown().get();
+        }
+        role.setContainerName("");
+        role.setSshIdentityPath("");
+        cluster.shutdownManager().addHookIfMissing(new CastleWriteClusterFileHook(cluster));
     }
 }

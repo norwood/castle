@@ -15,16 +15,12 @@
  * limitations under the License.
  */
 
-package io.confluent.castle.cloud;
+package io.confluent.castle.command;
 
-import org.apache.kafka.common.utils.Utils;
 import io.confluent.castle.cluster.CastleNode;
-import io.confluent.castle.common.CastleLog;
+import io.confluent.castle.common.CastleUtil;
 
 import java.io.BufferedReader;
-import java.io.EOFException;
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -32,50 +28,16 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class CastleRemoteCommand implements RemoteCommand {
-    private static final int OUTPUT_REDIRECTOR_BUFFER_SIZE = 16384;
+/**
+ * A command implementation that uses ssh to contact the node.
+ */
+public class SshCommand implements Command {
     private static final String SSH_TUNNEL_ACTIVE = "The ssh tunnel is now active.";
-
-    /**
-     * A thread which reads from a pipe and writes the result into a file.
-     */
-    private static final class OutputRedirector implements Runnable {
-        private final InputStream output;
-        private final StringBuilder stringBuilder;
-        private final CastleLog castleLog;
-
-        OutputRedirector(InputStream output, StringBuilder stringBuilder,
-                         CastleLog castleLog) {
-            this.output = output;
-            this.stringBuilder = stringBuilder;
-            this.castleLog = castleLog;
-        }
-
-        @Override
-        public void run() {
-            byte[] arr = new byte[OUTPUT_REDIRECTOR_BUFFER_SIZE];
-            try {
-                while (true) {
-                    int ret = output.read(arr);
-                    if (ret == -1) {
-                        break;
-                    }
-                    castleLog.write(arr, 0, ret);
-                    if (stringBuilder != null) {
-                        stringBuilder.append(new String(arr, StandardCharsets.UTF_8));
-                    }
-                }
-            } catch (EOFException e) {
-            } catch (IOException e) {
-                castleLog.printf("IOException: %s%n", e.getMessage());
-            }
-        }
-    }
 
     /**
      * An ssh tunnel that forwards local ports to remote ones.
      */
-    public static class Tunnel implements AutoCloseable {
+    public class Tunnel implements PortAccessor {
         private final static int MAX_TRIES = 10;
         private final Process process;
         private final int localPort;
@@ -100,14 +62,14 @@ public class CastleRemoteCommand implements RemoteCommand {
             this.localPort = localPort;
         }
 
-        private static Process tryCreateProcess(CastleNode node, int remotePort, int localPort)
+        private Process tryCreateProcess(CastleNode node, int remotePort, int localPort)
                 throws Exception {
             Process curProcess = null;
             boolean success = false;
-            List<String> commandLine = createSshCommandPreamble(node);
+            List<String> commandLine = createSshCommandPreamble();
             commandLine.add("-L");
             commandLine.add(String.format("%d:localhost:%d", localPort, remotePort));
-            commandLine.add(node.dns());
+            commandLine.add(dns);
             commandLine.add("-o");
             commandLine.add("ExitOnForwardFailure=yes");
             commandLine.add("-n");
@@ -116,9 +78,9 @@ public class CastleRemoteCommand implements RemoteCommand {
             commandLine.add(SSH_TUNNEL_ACTIVE);
             commandLine.add("&&");
             commandLine.add("sleep");
-            commandLine.add("100000");
+            commandLine.add("1000000");
             node.log().printf("** %s: CREATING SSH TUNNEL: %s%n",
-                node.nodeName(), joinCommandLineArgs(commandLine));
+                node.nodeName(), Command.joinArgs(commandLine));
             ProcessBuilder builder = new ProcessBuilder(commandLine);
             InputStreamReader isr = null;
             BufferedReader br = null;
@@ -132,24 +94,27 @@ public class CastleRemoteCommand implements RemoteCommand {
                 }
                 success = true;
             } finally {
-                Utils.closeQuietly(isr, "tryCreateProcess#InputStreamReader");
-                Utils.closeQuietly(br, "tryCreateProcess#BufferedReader");
+                CastleUtil.closeQuietly(node.log(), isr,
+                    "tryCreateProcess#InputStreamReader");
+                CastleUtil.closeQuietly(node.log(), br,
+                    "tryCreateProcess#BufferedReader");
                 if (!success) {
                     curProcess.destroy();
                     curProcess.waitFor();
                 }
             }
             node.log().printf("** %s: TUNNEL ESTABLISHED: %s%n",
-                node.nodeName(), joinCommandLineArgs(commandLine));
+                node.nodeName(), Command.joinArgs(commandLine));
             return curProcess;
         }
 
         /**
-         * Get the local (not remote) port which the ssh tunnel is connected to.
+         * Get the local port which the ssh tunnel is connected to.
          *
          * @return  The local port.
          */
-        public int localPort() {
+        @Override
+        public int port() {
             return localPort;
         }
 
@@ -160,9 +125,17 @@ public class CastleRemoteCommand implements RemoteCommand {
         }
     }
 
-    private Operation operation = Operation.SSH;
-
     private final CastleNode node;
+
+    private final String dns;
+
+    private final String sshUser;
+
+    private final int sshPort;
+
+    private final String sshIdentityFile;
+
+    private Operation operation = Operation.SSH;
 
     private List<String> args = null;
 
@@ -172,17 +145,21 @@ public class CastleRemoteCommand implements RemoteCommand {
 
     private StringBuilder stringBuilder = null;
 
-    CastleRemoteCommand(CastleNode node) {
+    public SshCommand(CastleNode node, String dns, String sshUser, int sshPort, String sshIdentityFile) {
         this.node = node;
+        this.dns = dns;
+        this.sshUser = sshUser;
+        this.sshPort = sshPort;
+        this.sshIdentityFile = sshIdentityFile;
     }
 
     @Override
-    public CastleRemoteCommand args(String... args) {
+    public Command args(String... args) {
         return argList(Arrays.asList(args));
     }
 
     @Override
-    public CastleRemoteCommand argList(List<String> args) {
+    public Command argList(List<String> args) {
         this.operation = Operation.SSH;
         this.args = new ArrayList<>(args);
         this.local = null;
@@ -191,7 +168,7 @@ public class CastleRemoteCommand implements RemoteCommand {
     }
 
     @Override
-    public CastleRemoteCommand syncTo(String local, String remote) {
+    public Command syncTo(String local, String remote) {
         this.operation = Operation.RSYNC_TO;
         this.args = null;
         this.local = local;
@@ -200,7 +177,7 @@ public class CastleRemoteCommand implements RemoteCommand {
     }
 
     @Override
-    public CastleRemoteCommand syncFrom(String remote, String local) {
+    public Command syncFrom(String remote, String local) {
         this.operation = Operation.RSYNC_FROM;
         this.args = null;
         this.local = local;
@@ -209,41 +186,29 @@ public class CastleRemoteCommand implements RemoteCommand {
     }
 
     @Override
-    public CastleRemoteCommand captureOutput(StringBuilder stringBuilder) {
+    public Command captureOutput(StringBuilder stringBuilder) {
         this.stringBuilder = stringBuilder;
         return this;
     }
 
     @Override
     public int run() throws Exception {
-        List<String> commandLine = makeCommandLine();
-        return run(commandLine);
+        return new NodeShellRunner(node, makeCommandLine(), stringBuilder).run();
     }
 
     @Override
     public void mustRun() throws Exception {
-        List<String> commandLine = makeCommandLine();
-        int returnCode = run(commandLine);
-        if (returnCode != 0) {
-            throw new RemoteCommandResultException(commandLine, returnCode);
-        }
+        new NodeShellRunner(node, makeCommandLine(), stringBuilder).mustRun();
     }
 
     @Override
     public void exec() throws Exception {
-        List<String> commandLine = makeCommandLine();
-        node.log().printf("** %s: SSH %s%n", node.nodeName(), joinCommandLineArgs(commandLine));
-        ProcessBuilder builder = new ProcessBuilder(commandLine);
-        builder.redirectInput(ProcessBuilder.Redirect.INHERIT);
-        builder.redirectError(ProcessBuilder.Redirect.INHERIT);
-        builder.redirectOutput(ProcessBuilder.Redirect.INHERIT);
-        Process process = builder.start();
-        System.exit(process.waitFor());
+        new NodeShellRunner(node, makeCommandLine(), stringBuilder).exec();
     }
 
     private List<String> makeCommandLine() {
         List<String> commandLine = new ArrayList<>();
-        if (node.dns().isEmpty()) {
+        if (dns.isEmpty()) {
             throw new RuntimeException("No DNS address configured for " + node.nodeName());
         }
         switch (operation) {
@@ -251,8 +216,8 @@ public class CastleRemoteCommand implements RemoteCommand {
                 if (args == null) {
                     throw new RuntimeException("You must supply ssh arguments.");
                 }
-                commandLine.addAll(createSshCommandPreamble(node));
-                commandLine.add(node.dns());
+                commandLine.addAll(createSshCommandPreamble());
+                commandLine.add(dns);
                 commandLine.addAll(args);
                 break;
             case RSYNC_TO:
@@ -263,9 +228,9 @@ public class CastleRemoteCommand implements RemoteCommand {
                 commandLine.add("-aqi");
                 commandLine.add("--delete");
                 commandLine.add("-e");
-                commandLine.add(Utils.join(createSshCommandPreamble(node), " "));
+                commandLine.add(CastleUtil.join(createSshCommandPreamble(), " "));
                 commandLine.add(local);
-                commandLine.add(node.dns() + ":" + remote);
+                commandLine.add(dns + ":" + remote);
                 break;
             case RSYNC_FROM:
                 if ((local == null) || (remote == null)) {
@@ -275,65 +240,33 @@ public class CastleRemoteCommand implements RemoteCommand {
                 commandLine.add("-aqi");
                 commandLine.add("--delete");
                 commandLine.add("-e");
-                commandLine.add(Utils.join(createSshCommandPreamble(node), " "));
-                commandLine.add(node.dns() + ":" + remote);
+                commandLine.add(CastleUtil.join(createSshCommandPreamble(), " "));
+                commandLine.add(dns + ":" + remote);
                 commandLine.add(local);
                 break;
         }
         return commandLine;
     }
 
-    private int run(List<String> commandLine) throws Exception {
-        ProcessBuilder builder = new ProcessBuilder(commandLine);
-        builder.redirectErrorStream(true);
-        Process process = null;
-        Thread outputRedirectorThread = null;
-        int retCode;
-        try {
-            node.log().printf("** %s: RUNNING %s%n", node.nodeName(), joinCommandLineArgs(commandLine));
-            process = builder.start();
-            OutputRedirector outputRedirector =
-                new OutputRedirector(process.getInputStream(), stringBuilder, node.log());
-            outputRedirectorThread = new Thread(outputRedirector, "CastleSsh_" + node.nodeName());
-            outputRedirectorThread.start();
-            retCode = process.waitFor();
-            outputRedirectorThread.join();
-            node.log().printf(String.format("** %s: FINISHED %s with RESULT %d%n",
-                node.nodeName(), joinCommandLineArgs(commandLine), retCode));
-        } finally {
-            if (process != null) {
-                process.destroy();
-                process.waitFor();
-            }
-            if (outputRedirectorThread != null) {
-                outputRedirectorThread.join();
-            }
-        }
-        return retCode;
-    }
-
-    public static List<String> createSshCommandPreamble(CastleNode node) {
+    public List<String> createSshCommandPreamble() {
         List<String> commandLine = new ArrayList<>();
         commandLine.add("ssh");
-        String identityFile = node.sshIdentityFile();
 
         // Specify an identity file, if configured.
-        if (!identityFile.isEmpty()) {
+        if (!sshIdentityFile.isEmpty()) {
             commandLine.add("-i");
-            commandLine.add(identityFile);
+            commandLine.add(sshIdentityFile);
         }
         // Set the user to ssh as, if configured.
-        String user = node.sshUser();
-        if (!user.isEmpty()) {
+        if (!sshUser.isEmpty()) {
             commandLine.add("-l");
-            commandLine.add(user);
+            commandLine.add(sshUser);
         }
 
         // Set the port to ssh to, if configured.
-        int port = node.sshPort();
-        if (port != 0) {
+        if (sshPort != 0) {
             commandLine.add("-p");
-            commandLine.add(Integer.toString(port));
+            commandLine.add(Integer.toString(sshPort));
         }
 
         // Disable strict host-key checking to avoid getting prompted the first time we connect.
@@ -344,27 +277,4 @@ public class CastleRemoteCommand implements RemoteCommand {
         return commandLine;
     }
 
-    /**
-     * Translate a list of command-line arguments into a human-readable string.
-     * Arguments which contain whitespace will be quoted.
-     *
-     * @param args  The argument list.
-     * @return      A human-readable string.
-     */
-    public static String joinCommandLineArgs(List<String> args) {
-        StringBuilder bld = new StringBuilder();
-        String prefix = "";
-        for (String arg : args) {
-            bld.append(prefix);
-            prefix = " ";
-            if (arg.contains(" ")) {
-                bld.append("\"");
-            }
-            bld.append(arg);
-            if (arg.contains(" ")) {
-                bld.append("\"");
-            }
-        }
-        return bld.toString();
-    }
 }

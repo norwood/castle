@@ -45,7 +45,7 @@ public final class SshAction extends Action {
 
     @Override
     public void call(final CastleCluster cluster, final CastleNode node) throws Throwable {
-        int status = node.cloud().remoteCommand(node).argList(command).run();
+        int status = node.uplink().command().argList(command).run();
         if (status != 0) {
             cluster.shutdownManager().changeReturnCode(CLUSTER_FAILED);
         }

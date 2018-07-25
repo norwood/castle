@@ -18,17 +18,19 @@
 package io.confluent.castle.cluster;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import io.confluent.castle.common.CastleUtil;
 import io.confluent.castle.action.Action;
 import io.confluent.castle.action.ActionScheduler;
-import io.confluent.castle.cloud.Cloud;
+import io.confluent.castle.cloud.CloudCache;
 import io.confluent.castle.common.CastleLog;
+import io.confluent.castle.common.CastleUtil;
 import io.confluent.castle.role.BrokerRole;
 import io.confluent.castle.role.Role;
+import io.confluent.castle.role.UplinkRole;
 import io.confluent.castle.role.ZooKeeperRole;
 import io.confluent.castle.tool.CastleEnvironment;
 import io.confluent.castle.tool.CastleShutdownManager;
 import io.confluent.castle.tool.CastleTool;
+import io.confluent.castle.uplink.Uplink;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -39,7 +41,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The CastleCluster.
@@ -48,7 +49,7 @@ public final class CastleCluster implements AutoCloseable {
     private final CastleClusterConf conf;
     private final CastleEnvironment env;
     private final CastleLog clusterLog;
-    private final ConcurrentHashMap<String, Cloud> cloudCache;
+    private final CloudCache cloudCache;
     private final Map<String, CastleNode> nodes;
     private final CastleShutdownManager shutdownManager;
     private final Map<String, Role> originalRoles;
@@ -58,7 +59,7 @@ public final class CastleCluster implements AutoCloseable {
         this.conf = spec.conf();
         this.env = env;
         this.clusterLog = clusterLog;
-        this.cloudCache = new ConcurrentHashMap<>();
+        this.cloudCache = new CloudCache();
         TreeMap<String, CastleNode> nodes = new TreeMap<>();
         int nodeIndex = 0;
         Map<String, Map<Class<? extends Role>, Role>> nodesToRoles = spec.nodesToRoles();
@@ -66,9 +67,9 @@ public final class CastleCluster implements AutoCloseable {
             String nodeName = e.getKey();
             Map<Class<? extends Role>, Role> roleMap = e.getValue();
             CastleLog castleLog = CastleLog.fromFile(env.workingDirectory(), nodeName, true);
-            CastleNode node = new CastleNode(clusterLog, nodeIndex, nodeName, castleLog,
-                roleMap, getNodeCloud(nodeName, roleMap.values()));
+            CastleNode node = new CastleNode(clusterLog, nodeIndex, nodeName, castleLog, roleMap);
             nodes.put(nodeName, node);
+            node.setUplink(getNodeUplink(nodeName, node, roleMap.values()));
             nodeIndex++;
         }
         this.nodes = Collections.unmodifiableMap(nodes);
@@ -76,23 +77,29 @@ public final class CastleCluster implements AutoCloseable {
         this.originalRoles = spec.roles();
     }
 
-    private Cloud getNodeCloud(String nodeName, Collection<Role> roles)  {
-        Cloud cloud = null;
+    private Uplink getNodeUplink(String nodeName, CastleNode node, Collection<Role> roles)  {
+        UplinkRole uplinkRole = null;
         for (Role role : roles) {
-            Cloud next = role.cloud(cloudCache);
-            if (next != null) {
-                if (cloud != null) {
-                    throw new RuntimeException("Node " + nodeName + " was associated " +
-                        "with more than one cloud.  Found both " + cloud + " and " + next);
+            if (role instanceof UplinkRole) {
+                if (uplinkRole != null) {
+                    throw new RuntimeException("Found two uplink roles for " + nodeName + ": " +
+                        uplinkRole + " and " + role);
                 }
-                cloud = next;
+                uplinkRole = (UplinkRole) role;
             }
         }
-        return cloud;
+        if (uplinkRole == null) {
+            throw new RuntimeException("No uplink roles found for node " + nodeName);
+        }
+        return uplinkRole.createUplink(this, node);
     }
 
     public CastleClusterConf conf() {
         return conf;
+    }
+
+    public CloudCache cloudCache() {
+        return cloudCache;
     }
 
     public CastleLog clusterLog() {
@@ -140,7 +147,7 @@ public final class CastleCluster implements AutoCloseable {
         for (String nodeName : nodesWithRole(BrokerRole.class).values()) {
             bld.append(prefix);
             prefix = ",";
-            bld.append(nodes().get(nodeName).privateDns()).append(":9092");
+            bld.append(nodes().get(nodeName).uplink().internalDns()).append(":9092");
         }
         return bld.toString();
     }
@@ -151,7 +158,7 @@ public final class CastleCluster implements AutoCloseable {
         for (String nodeName : nodesWithRole(ZooKeeperRole.class).values()) {
             bld.append(prefix);
             prefix = ",";
-            bld.append(nodes().get(nodeName).privateDns()).append(":2181");
+            bld.append(nodes().get(nodeName).uplink().internalDns()).append(":2181");
         }
         return bld.toString();
     }
@@ -192,19 +199,6 @@ public final class CastleCluster implements AutoCloseable {
         }
         throw new RuntimeException("Unable to find a node with index " +
             nodeIndex + "; we have only " + nodes.size() + " node(s).");
-    }
-
-    @Override
-    public void close() {
-        for (Map.Entry<String, CastleNode> entry : nodes.entrySet()) {
-            CastleUtil.closeQuietly(clusterLog, entry.getValue(), "cluster castleLogs");
-        }
-        for (Iterator<Map.Entry<String, Cloud>> iter = cloudCache.entrySet().iterator();
-                iter.hasNext(); ) {
-            Map.Entry<String, Cloud> entry = iter.next();
-            CastleUtil.closeQuietly(clusterLog, entry.getValue(), entry.getKey());
-            iter.remove();
-        }
     }
 
     public CastleEnvironment env() {
@@ -274,5 +268,13 @@ public final class CastleCluster implements AutoCloseable {
 
     public CastleShutdownManager shutdownManager() {
         return shutdownManager;
+    }
+
+    @Override
+    public void close() {
+        CastleUtil.closeQuietly(clusterLog, cloudCache, "cloudCache");
+        for (Map.Entry<String, CastleNode> entry : nodes.entrySet()) {
+            CastleUtil.closeQuietly(clusterLog, entry.getValue(), "cluster castleLogs");
+        }
     }
 }

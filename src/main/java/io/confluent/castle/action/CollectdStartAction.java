@@ -54,10 +54,10 @@ public final class CollectdStartAction extends Action {
         try {
             configFile = writeCollectdConfig(cluster, node);
             CastleUtil.killProcess(cluster, node, COLLECTD, "SIGKILL");
-            node.cloud().remoteCommand(node).args(createSetupPathsCommandLine()).mustRun();
-            node.cloud().remoteCommand(node).syncTo(configFile.getAbsolutePath(),
+            node.uplink().command().args(createSetupPathsCommandLine()).mustRun();
+            node.uplink().command().syncTo(configFile.getAbsolutePath(),
                 COLLECTD_PROPERTIES).mustRun();
-            node.cloud().remoteCommand(node).args(createRunDaemonCommandLine()).mustRun();
+            node.uplink().command().args(createRunDaemonCommandLine()).mustRun();
         } finally {
             CastleUtil.deleteFileOrLog(node.log(), configFile);
             CastleUtil.deleteFileOrLog(node.log(), log4jFile);

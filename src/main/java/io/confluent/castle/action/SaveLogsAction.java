@@ -17,9 +17,9 @@
 
 package io.confluent.castle.action;
 
-import io.confluent.castle.cloud.RemoteCommandResultException;
 import io.confluent.castle.cluster.CastleCluster;
 import io.confluent.castle.cluster.CastleNode;
+import io.confluent.castle.command.CommandResultException;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -42,22 +42,22 @@ public final class SaveLogsAction extends Action {
 
     @Override
     public void call(CastleCluster cluster, CastleNode node) throws Throwable {
-        if (node.dns().isEmpty()) {
-            node.log().printf("*** Skipping saveLogs, because the node has no DNS address.%n");
+        if (!node.uplink().started()) {
+            node.log().printf("*** Skipping saveLogs, because the node is not running.%n");
             return;
         }
         Files.createDirectories(Paths.get(cluster.env().workingDirectory(),
             "logs", node.nodeName()));
-        int lsStatus = node.cloud().remoteCommand(node).args("ls", ActionPaths.LOGS_ROOT).run();
+        int lsStatus = node.uplink().command().args("ls", ActionPaths.LOGS_ROOT).run();
         if (lsStatus == 0) {
-            node.cloud().remoteCommand(node).
+            node.uplink().command().
                 syncFrom(ActionPaths.LOGS_ROOT + "/",
                     cluster.env().workingDirectory() + "/logs/" + node.nodeName() + "/").
                 mustRun();
         } else if ((lsStatus == 1) || (lsStatus == 2)) {
             node.log().printf("*** Skipping saveLogs, because %s was not found.%n", ActionPaths.LOGS_ROOT);
         } else {
-            throw new RemoteCommandResultException(
+            throw new CommandResultException(
                 Arrays.asList(new String[]{"ls", ActionPaths.LOGS_ROOT}), lsStatus);
         }
     }

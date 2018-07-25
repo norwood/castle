@@ -17,9 +17,9 @@
 
 package io.confluent.castle.common;
 
-import io.confluent.castle.cloud.CastleRemoteCommand;
 import io.confluent.castle.cluster.CastleCluster;
 import io.confluent.castle.cluster.CastleNode;
+import io.confluent.castle.command.PortAccessor;
 import io.confluent.castle.tool.CastleReturnCode;
 import org.apache.kafka.trogdor.coordinator.Coordinator;
 import org.apache.kafka.trogdor.coordinator.CoordinatorClient;
@@ -176,7 +176,7 @@ public final class CastleUtil {
      */
     public static final void killProcess(CastleCluster cluster,
             CastleNode node, String processPattern, String signalType) throws Exception {
-        node.cloud().remoteCommand(node).
+        node.uplink().command().
             argList(killProcessArgs(processPattern, signalType)).
             mustRun();
     }
@@ -206,7 +206,7 @@ public final class CastleUtil {
      */
     public static final void killJavaProcess(CastleCluster cluster,
                                              CastleNode node, String processPattern, boolean force) throws Exception {
-        node.cloud().remoteCommand(node).
+        node.uplink().command().
             argList(killJavaProcessArgs(processPattern, force)).
             mustRun();
     }
@@ -236,7 +236,7 @@ public final class CastleUtil {
                                                         CastleNode node, String processPattern) throws Exception {
         String effectivePattern = "[" + processPattern.substring(0, 1) + "]" + processPattern.substring(1);
         StringBuilder stringBuilder = new StringBuilder();
-        int retVal = node.cloud().remoteCommand(node).
+        int retVal = node.uplink().command().
             captureOutput(stringBuilder).
             args("-n", "--", "ps", "aux", "|", "awk", "'/" + effectivePattern + "/ { print $2 }'").
             run();
@@ -268,7 +268,7 @@ public final class CastleUtil {
     public static final CastleReturnCode getJavaProcessStatus(CastleCluster cluster,
                                                             CastleNode node, String processPattern) throws Exception {
         StringBuilder stringBuilder = new StringBuilder();
-        int retVal = node.cloud().remoteCommand(node).
+        int retVal = node.uplink().command().
             captureOutput(stringBuilder).
             args("-n", "--", "jcmd", "|", "grep", processPattern).
             run();
@@ -318,15 +318,14 @@ public final class CastleUtil {
      */
     public static <T> T invokeCoordinator(final CastleCluster cluster, final CastleNode node,
                                           CoordinatorFunction<T> func) throws Exception {
-        try (CastleRemoteCommand.Tunnel tunnel =
-                 new CastleRemoteCommand.Tunnel(node, Coordinator.DEFAULT_PORT)) {
+        try (PortAccessor portAccessor = node.uplink().openPort(Coordinator.DEFAULT_PORT)) {
             CoordinatorClient coordinatorClient = new CoordinatorClient.Builder().
                 maxTries(3).
-                target("localhost", tunnel.localPort()).
+                target("localhost", portAccessor.port()).
                 log(node.log()).
                 build();
             return func.apply(coordinatorClient,
-                String.format("http://localhost:%d", tunnel.localPort()));
+                String.format("http://localhost:%d", portAccessor.port()));
         }
     }
 

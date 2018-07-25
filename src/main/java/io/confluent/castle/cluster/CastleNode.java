@@ -17,10 +17,9 @@
 
 package io.confluent.castle.cluster;
 
-import io.confluent.castle.cloud.Cloud;
+import io.confluent.castle.uplink.Uplink;
 import io.confluent.castle.common.CastleUtil;
 import io.confluent.castle.common.CastleLog;
-import io.confluent.castle.role.AwsNodeRole;
 import io.confluent.castle.role.Role;
 import org.slf4j.Logger;
 
@@ -55,18 +54,18 @@ public final class CastleNode implements AutoCloseable {
     private final Map<Class<? extends Role>, Role> roles;
 
     /**
-     * The cloud associated with this node.
+     * The Uplink associated with this node.
      */
-    private final Cloud cloud;
+    private Uplink uplink;
 
     CastleNode(Logger clusterLog, int nodeIndex, String nodeName, CastleLog castleLog,
-               Map<Class<? extends Role>, Role> roles, Cloud cloud) {
+               Map<Class<? extends Role>, Role> roles) {
         this.clusterLog = clusterLog;
         this.nodeIndex = nodeIndex;
         this.nodeName = nodeName;
         this.castleLog = castleLog;
         this.roles = Collections.unmodifiableMap(roles);
-        this.cloud = cloud;
+        this.uplink = null;
     }
 
     public int nodeIndex() {
@@ -90,56 +89,12 @@ public final class CastleNode implements AutoCloseable {
         return (R) role;
     }
 
-    public String dns() {
-        AwsNodeRole role = getRole(AwsNodeRole.class);
-        if (role == null) {
-            return "";
-        }
-        return role.dns();
+    public synchronized Uplink uplink() {
+        return uplink;
     }
 
-    public String privateDns() {
-        AwsNodeRole role = getRole(AwsNodeRole.class);
-        if (role == null) {
-            return "";
-        }
-        return role.privateDns();
-    }
-
-    public String publicDns() {
-        AwsNodeRole role = getRole(AwsNodeRole.class);
-        if (role == null) {
-            return "";
-        }
-        return role.publicDns();
-    }
-
-    public String sshIdentityFile() {
-        AwsNodeRole role = getRole(AwsNodeRole.class);
-        if (role == null) {
-            return "";
-        }
-        return role.sshIdentityFile();
-    }
-
-    public String sshUser() {
-        AwsNodeRole role = getRole(AwsNodeRole.class);
-        if (role == null) {
-            return "";
-        }
-        return role.sshUser();
-    }
-
-    public int sshPort() {
-        AwsNodeRole role = getRole(AwsNodeRole.class);
-        if (role == null) {
-            return 0;
-        }
-        return role.sshPort();
-    }
-
-    public Cloud cloud() {
-        return cloud;
+    public synchronized void setUplink(Uplink uplink) {
+        this.uplink = uplink;
     }
 
     public Map<Class<? extends Role>, Role> roles() {

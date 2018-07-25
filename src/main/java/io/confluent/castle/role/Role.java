@@ -20,10 +20,8 @@ package io.confluent.castle.role;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.confluent.castle.action.Action;
-import io.confluent.castle.cloud.Cloud;
 
 import java.util.Collection;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * A role which a particular castle cluster node can have.
@@ -36,13 +34,14 @@ import java.util.concurrent.ConcurrentHashMap;
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(value = AwsNodeRole.class, name = "awsNode"),
     @JsonSubTypes.Type(value = BrokerRole.class, name = "broker"),
+    @JsonSubTypes.Type(value = CollectdRole.class, name = "collectd"),
+    @JsonSubTypes.Type(value = DockerNodeRole.class, name = "dockerNode"),
+    @JsonSubTypes.Type(value = JmxDumperRole.class, name = "jmx"),
+    @JsonSubTypes.Type(value = TaskRole.class, name = "task"),
     @JsonSubTypes.Type(value = TrogdorAgentRole.class, name = "trogdorAgent"),
     @JsonSubTypes.Type(value = TrogdorCoordinatorRole.class, name = "trogdorCoordinator"),
-    @JsonSubTypes.Type(value = TaskRole.class, name = "task"),
     @JsonSubTypes.Type(value = UbuntuNodeRole.class, name = "ubuntuNode"),
     @JsonSubTypes.Type(value = ZooKeeperRole.class, name = "zooKeeper"),
-    @JsonSubTypes.Type(value = CollectdRole.class, name = "collectd"),
-    @JsonSubTypes.Type(value = JmxDumperRole.class, name = "jmx"),
     })
 public interface Role {
     /**
@@ -56,13 +55,4 @@ public interface Role {
      * @param nodeName      The name of this node.
      */
     Collection<Action> createActions(String nodeName);
-
-    /**
-     * Get or create the cloud accessor associated with this role, or null if there is none.
-     *
-     * @param cloudCache    A cache mapping cloud instance names to cloud objects.
-     */
-    default Cloud cloud(ConcurrentHashMap<String, Cloud> cloudCache) {
-        return null;
-    }
 };

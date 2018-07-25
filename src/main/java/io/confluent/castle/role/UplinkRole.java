@@ -15,34 +15,18 @@
  * limitations under the License.
  */
 
-package io.confluent.castle.action;
+package io.confluent.castle.role;
 
 import io.confluent.castle.cluster.CastleCluster;
 import io.confluent.castle.cluster.CastleNode;
-import io.confluent.castle.common.CastleUtil;
-import io.confluent.castle.role.ZooKeeperRole;
+import io.confluent.castle.uplink.Uplink;
 
 /**
- * Stop zookeeper.
+ * A role which provides an uplink.
  */
-public final class ZooKeeperStopAction extends Action {
-    public final static String TYPE = "zooKeeperStop";
-
-    public ZooKeeperStopAction(String scope, ZooKeeperRole role) {
-        super(new ActionId(TYPE, scope),
-            new TargetId[] {
-                new TargetId(BrokerStopAction.TYPE)
-            },
-            new String[] {},
-            role.initialDelayMs());
-    }
-
-    @Override
-    public void call(CastleCluster cluster, CastleNode node) throws Throwable {
-        if (node.uplink() == null) {
-            node.log().printf("*** Skipping zooKeeperStop, because the node is not running.%n");
-            return;
-        }
-        CastleUtil.killJavaProcess(cluster, node, ZooKeeperRole.ZOOKEEPER_CLASS_NAME, false);
-    }
-}
+public interface UplinkRole {
+    /**
+     * Create an uplink to this node.
+     */
+    Uplink createUplink(CastleCluster cluster, CastleNode node);
+};

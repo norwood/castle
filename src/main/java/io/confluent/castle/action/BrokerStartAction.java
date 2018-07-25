@@ -62,12 +62,12 @@ public final class BrokerStartAction extends Action {
             configFile = writeBrokerConfig(cluster, node);
             log4jFile = writeBrokerLog4j(cluster, node);
             CastleUtil.killJavaProcess(cluster, node, KAFKA_CLASS_NAME, true);
-            node.cloud().remoteCommand(node).args(createSetupPathsCommandLine()).mustRun();
-            node.cloud().remoteCommand(node).syncTo(configFile.getAbsolutePath(),
+            node.uplink().command().args(createSetupPathsCommandLine()).mustRun();
+            node.uplink().command().syncTo(configFile.getAbsolutePath(),
                 ActionPaths.KAFKA_BROKER_PROPERTIES).mustRun();
-            node.cloud().remoteCommand(node).syncTo(log4jFile.getAbsolutePath(),
+            node.uplink().command().syncTo(log4jFile.getAbsolutePath(),
                 ActionPaths.KAFKA_BROKER_LOG4J).mustRun();
-            node.cloud().remoteCommand(node).args(createRunDaemonCommandLine()).mustRun();
+            node.uplink().command().args(createRunDaemonCommandLine()).mustRun();
         } finally {
             CastleUtil.deleteFileOrLog(node.log(), configFile);
             CastleUtil.deleteFileOrLog(node.log(), log4jFile);
@@ -75,7 +75,7 @@ public final class BrokerStartAction extends Action {
         CastleUtil.waitFor(5, 30000, new Callable<Boolean>() {
             @Override
             public Boolean call() throws Exception {
-                return 0 == node.cloud().remoteCommand(node).args(
+                return 0 == node.uplink().command().args(
                     CastleUtil.checkJavaProcessStatusArgs(KAFKA_CLASS_NAME)).run();
             }
         });
@@ -128,7 +128,7 @@ public final class BrokerStartAction extends Action {
             osw.write(String.format("broker.id=%d%n", getBrokerId(cluster, node)));
             osw.write(String.format("listeners=PLAINTEXT://:9092%n"));
             osw.write(String.format("advertised.host.name=%s%n",
-                node.privateDns()));
+                node.uplink().internalDns()));
             osw.write(String.format("log.dirs=%s%n", KAFKA_OPLOGS));
             osw.write(String.format("zookeeper.connect=%s%n", cluster.getZooKeeperConnectString()));
             for (Map.Entry<String, String> entry : effectiveConf.entrySet()) {

@@ -51,12 +51,12 @@ public class TrogdorStartAction extends Action  {
             configFile = writeTrogdorConfig(cluster, node);
             log4jFile = writeTrogdorLog4j(cluster, node);
             CastleUtil.killJavaProcess(cluster, node, daemonType.className(), false);
-            node.cloud().remoteCommand(node).args(createSetupPathsCommandLine(daemonType)).mustRun();
-            node.cloud().remoteCommand(node).syncTo(configFile.getAbsolutePath(),
+            node.uplink().command().args(createSetupPathsCommandLine(daemonType)).mustRun();
+            node.uplink().command().syncTo(configFile.getAbsolutePath(),
                 daemonType.propertiesPath()).mustRun();
-            node.cloud().remoteCommand(node).syncTo(log4jFile.getAbsolutePath(),
+            node.uplink().command().syncTo(log4jFile.getAbsolutePath(),
                 daemonType.log4jConfPath()).mustRun();
-            node.cloud().remoteCommand(node).args(
+            node.uplink().command().args(
                 runDaemonCommandLine(daemonType, node.nodeName())).mustRun();
         } finally {
             CastleUtil.deleteFileOrLog(node.log(), configFile);
@@ -65,7 +65,7 @@ public class TrogdorStartAction extends Action  {
         CastleUtil.waitFor(5, 30000, new Callable<Boolean>() {
             @Override
             public Boolean call() throws Exception {
-                return 0 == node.cloud().remoteCommand(node).args(
+                return 0 == node.uplink().command().args(
                     CastleUtil.checkJavaProcessStatusArgs(daemonType.className())).run();
             }
         });
@@ -110,7 +110,7 @@ public class TrogdorStartAction extends Action  {
                     osw.write(String.format("%s    \"%s\": {%n", prefix, nodeName));
                     prefix = String.format(",%n");
                     osw.write(String.format("      \"hostname\": \"%s\",%n",
-                        castleNode.privateDns()));
+                        castleNode.uplink().internalDns()));
                     osw.write(String.format("      \"trogdor.agent.port\": 8888%n"));
                     osw.write(String.format("    }"));
                 }

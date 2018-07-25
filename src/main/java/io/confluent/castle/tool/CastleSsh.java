@@ -20,9 +20,9 @@ package io.confluent.castle.tool;
 import io.confluent.castle.action.Action;
 import io.confluent.castle.action.ActionScheduler;
 import io.confluent.castle.action.SshAction;
-import io.confluent.castle.cloud.RemoteCommand;
 import io.confluent.castle.cluster.CastleCluster;
 import io.confluent.castle.cluster.CastleNode;
+import io.confluent.castle.command.Command;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -104,7 +104,7 @@ public final class CastleSsh {
             }
         } else if (args.nodeNames().size() == 1) {
             CastleNode node = cluster.nodes().get(args.nodeNames().get(0));
-            RemoteCommand command = node.cloud().remoteCommand(node).
+            Command command = node.uplink().command().
                 argList(args.command());
             command.exec();
         } else {

@@ -27,9 +27,8 @@ import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.RunInstancesResult;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
-import org.apache.kafka.common.internals.KafkaFutureImpl;
+import io.confluent.castle.common.CastleUtil;
 import org.apache.kafka.common.utils.Time;
-import io.confluent.castle.cluster.CastleNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,9 +39,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletableFuture;
 
-public final class Ec2Cloud implements Cloud, Runnable {
+public final class Ec2Cloud implements AutoCloseable, Runnable {
     private static final Logger log = LoggerFactory.getLogger(Ec2Cloud.class);
 
     /**
@@ -59,106 +58,63 @@ public final class Ec2Cloud implements Cloud, Runnable {
      */
     private final static int CALL_DELAY_MS = 500;
 
-    private static final String IMAGE_ID_DEFAULT = "ami-29ebb519";
+    private final Ec2Settings settings;
 
-    private static final String INSTANCE_TYPE_DEFAULT = "m1.small";
-
-    private final Settings settings;
     private final AmazonEC2 ec2;
+
     private final Thread thread;
-    private final List<Ec2Runner> runs = new ArrayList<>();
-    private final List<DescribeInstance> describes = new ArrayList<>();
-    private final List<DescribeInstances> describeAlls = new ArrayList<>();
-    private final List<TerminateInstance> terminates = new ArrayList<>();
+
+    private final List<CreateInstanceOp> creates = new ArrayList<>();
+
+    private final List<DescribeInstanceOp> describes = new ArrayList<>();
+
+    private final List<DescribeAllInstancesOp> describeAlls = new ArrayList<>();
+
+    private final List<TerminateInstanceOp> terminates = new ArrayList<>();
+
     private boolean shouldExit = false;
+
     private long nextCallTimeMs = 0;
 
-    public final static class Settings {
-        private final String keyPair;
-        private final String securityGroup;
-        private final String region;
+    private final static class CreateInstanceOp {
+        private final CompletableFuture<String> future = new CompletableFuture<>();
+        private final String instanceType;
+        private final String imageId;
 
-        public Settings(String keyPair, String securityGroup, String region) {
-            this.keyPair = keyPair;
-            this.securityGroup = securityGroup;
-            this.region = region;
-        }
-
-        @Override
-        public String toString() {
-            return "Ec2Cloud(keyPair=" + keyPair +
-                ", securityGroup=" + securityGroup +
-                ", region=" + region + ")";
+        CreateInstanceOp(String instanceType, String imageId) {
+            this.instanceType = instanceType;
+            this.imageId = imageId;
         }
     }
 
-    private final class Ec2Runner extends Runner {
-        private final KafkaFutureImpl<String> future = new KafkaFutureImpl<>();
-
-        @Override
-        public String run() throws Exception {
-            if (instanceType.isEmpty()) {
-                instanceType = INSTANCE_TYPE_DEFAULT;
-            }
-            if (imageId.isEmpty()) {
-                imageId = IMAGE_ID_DEFAULT;
-            }
-            synchronized (Ec2Cloud.this) {
-                runs.add(this);
-                updateNextCallTime(COALSCE_DELAY_MS);
-                Ec2Cloud.this.notifyAll();
-            }
-            return future.get();
-        }
-
-        @Override
-        public int hashCode() {
-            return instanceType.hashCode() ^ imageId.hashCode();
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            Ec2Runner other = (Ec2Runner) o;
-            return instanceType.equals(other.instanceType) &&
-                imageId.equals(other.imageId);
-        }
-    }
-
-    private static final class DescribeInstance {
-        private final KafkaFutureImpl<InstanceDescription> future;
+    private static final class DescribeInstanceOp {
+        private final CompletableFuture<Ec2InstanceInfo> future = new CompletableFuture<>();
         private final String instanceId;
 
-        DescribeInstance(KafkaFutureImpl<InstanceDescription> future, String instanceId) {
-            this.future = future;
+        DescribeInstanceOp(String instanceId) {
             this.instanceId = instanceId;
         }
     }
 
-    private static final class DescribeInstances {
-        private final KafkaFutureImpl<Collection<InstanceDescription>> future;
-
-        DescribeInstances(KafkaFutureImpl<Collection<InstanceDescription>> future) {
-            this.future = future;
-        }
+    private static final class DescribeAllInstancesOp {
+        private final CompletableFuture<Collection<Ec2InstanceInfo>> future =
+            new CompletableFuture<>();
     }
 
-    private static final class TerminateInstance {
-        private final KafkaFutureImpl<Void> future;
+    private static final class TerminateInstanceOp {
+        private final CompletableFuture<Void> future = new CompletableFuture<>();
         private final String instanceId;
 
-        TerminateInstance(KafkaFutureImpl<Void> future, String instanceId) {
-            this.future = future;
+        TerminateInstanceOp(String instanceId) {
             this.instanceId = instanceId;
         }
     }
 
-    public Ec2Cloud(Settings settings) {
+    public Ec2Cloud(Ec2Settings settings) {
         this.settings = settings;
         AmazonEC2ClientBuilder ec2Builder = AmazonEC2ClientBuilder.standard();
-        if (!settings.region.isEmpty()) {
-            ec2Builder.setRegion(settings.region);
+        if (!settings.region().isEmpty()) {
+            ec2Builder.setRegion(settings.region());
         }
         this.ec2 = ec2Builder.build();
         this.thread = new Thread(this, "Ec2CloudThread");
@@ -188,13 +144,16 @@ public final class Ec2Cloud implements Cloud, Runnable {
         } finally {
             synchronized (this) {
                 RuntimeException e = new RuntimeException("Ec2Cloud is shutting down.");
-                for (Ec2Runner run : runs) {
-                    run.future.completeExceptionally(e);
+                for (CreateInstanceOp op : creates) {
+                    op.future.completeExceptionally(e);
                 }
-                for (DescribeInstance describe : describes) {
+                for (DescribeInstanceOp describe : describes) {
                     describe.future.completeExceptionally(e);
                 }
-                for (TerminateInstance terminate : terminates) {
+                for (DescribeAllInstancesOp describeAll : describeAlls) {
+                    describeAll.future.completeExceptionally(e);
+                }
+                for (TerminateInstanceOp terminate : terminates) {
                     terminate.future.completeExceptionally(e);
                 }
             }
@@ -205,8 +164,10 @@ public final class Ec2Cloud implements Cloud, Runnable {
         if (shouldExit) {
             // Should exit.
             return -1;
-        } else if (runs.isEmpty() && describes.isEmpty() &&
-                describeAlls.isEmpty() && terminates.isEmpty()) {
+        } else if (creates.isEmpty() &&
+                    describes.isEmpty() &&
+                    describeAlls.isEmpty() &&
+                    terminates.isEmpty()) {
             // Nothing to do.
             return Long.MAX_VALUE;
         } else {
@@ -220,45 +181,45 @@ public final class Ec2Cloud implements Cloud, Runnable {
     }
 
     private synchronized void makeCalls() throws Exception {
-        log.info("Ec2Cloud#makeCalls.  runs.size=" + runs.size());
-        if (!runs.isEmpty()) {
-            List<Ec2Runner> batchRuns = new ArrayList<>();
-            Iterator<Ec2Runner> iter = runs.iterator();
-            Ec2Runner firstRunner = iter.next();
+        log.info("Ec2Cloud#makeCalls.  creates.size=" + creates.size());
+        if (!creates.isEmpty()) {
+            List<CreateInstanceOp> batchCreates = new ArrayList<>();
+            Iterator<CreateInstanceOp> iter = creates.iterator();
+            CreateInstanceOp firstCreate = iter.next();
             iter.remove();
-            batchRuns.add(firstRunner);
+            batchCreates.add(firstCreate);
             while (iter.hasNext()) {
-                Ec2Runner runner = iter.next();
-                if (runner.equals(firstRunner)) {
-                    batchRuns.add(runner);
+                CreateInstanceOp runner = iter.next();
+                if (runner.equals(firstCreate)) {
+                    batchCreates.add(runner);
                     iter.remove();
                 }
             }
-            Iterator<Ec2Runner> runInstanceIterator = batchRuns.iterator();
+            Iterator<CreateInstanceOp> runInstanceIterator = batchCreates.iterator();
             Exception failureException = new RuntimeException("Unable to create instance");
             try {
-                if (settings.keyPair.isEmpty()) {
+                if (settings.keyPair().isEmpty()) {
                     throw new RuntimeException("You must specify a keypair in " +
                         "order to create a new AWS instance.");
                 }
-                if (settings.securityGroup.isEmpty()) {
+                if (settings.securityGroup().isEmpty()) {
                     throw new RuntimeException("You must specify a security group in " +
                         "order to create a new AWS instance.");
                 }
-                log.info("Ec2Cloud#makeCalls.  batchRuns.size={}, imageId={}, keyName={}, securityGroups={}",
-                    batchRuns.size(), firstRunner.imageId, settings.keyPair, settings.securityGroup);
+                log.info("Ec2Cloud#makeCalls.  batchCreates.size={}, imageId={}, keyName={}, securityGroups={}",
+                    batchCreates.size(), firstCreate.imageId, settings.keyPair(), settings.securityGroup());
                 RunInstancesRequest req = new RunInstancesRequest()
-                    .withInstanceType(firstRunner.instanceType)
-                    .withImageId(firstRunner.imageId)
-                    .withMinCount(batchRuns.size())
-                    .withMaxCount(batchRuns.size())
-                    .withKeyName(settings.keyPair)
-                    .withSecurityGroups(settings.securityGroup);
+                    .withInstanceType(firstCreate.instanceType)
+                    .withImageId(firstCreate.imageId)
+                    .withMinCount(batchCreates.size())
+                    .withMaxCount(batchCreates.size())
+                    .withKeyName(settings.keyPair())
+                    .withSecurityGroups(settings.securityGroup());
                 RunInstancesResult result = ec2.runInstances(req);
                 Reservation reservation = result.getReservation();
                 Iterator<Instance> instanceIterator = reservation.getInstances().iterator();
                 while (runInstanceIterator.hasNext() && instanceIterator.hasNext()) {
-                    Ec2Runner runInstance = runInstanceIterator.next();
+                    CreateInstanceOp runInstance = runInstanceIterator.next();
                     Instance instance = instanceIterator.next();
                     runInstance.future.complete(instance.getInstanceId());
                 }
@@ -266,14 +227,14 @@ public final class Ec2Cloud implements Cloud, Runnable {
                 failureException = e;
             }
             while (runInstanceIterator.hasNext()) {
-                Ec2Runner runInstance = runInstanceIterator.next();
+                CreateInstanceOp runInstance = runInstanceIterator.next();
                 runInstance.future.completeExceptionally(failureException);
             }
         } else if (!describes.isEmpty()) {
-            Map<String, DescribeInstance> idToDescribe = new HashMap<>();
-            for (Iterator<DescribeInstance> iter = describes.iterator(); iter.hasNext();
+            Map<String, DescribeInstanceOp> idToDescribe = new HashMap<>();
+            for (Iterator<DescribeInstanceOp> iter = describes.iterator(); iter.hasNext();
                      iter.remove()) {
-                DescribeInstance describe = iter.next();
+                DescribeInstanceOp describe = iter.next();
                 idToDescribe.put(describe.instanceId, describe);
             }
             Exception failureException = new RuntimeException("Result did not include instanceID.");
@@ -283,14 +244,14 @@ public final class Ec2Cloud implements Cloud, Runnable {
                 DescribeInstancesResult result = ec2.describeInstances(req);
                 for (Reservation reservation : result.getReservations()) {
                     for (Instance instance : reservation.getInstances()) {
-                        DescribeInstance describeInstance = idToDescribe.get(instance.getInstanceId());
-                        if (describeInstance != null) {
-                            InstanceDescription description =
-                                new InstanceDescription(instance.getInstanceId(),
+                        DescribeInstanceOp op = idToDescribe.get(instance.getInstanceId());
+                        if (op != null) {
+                            Ec2InstanceInfo info =
+                                new Ec2InstanceInfo(instance.getInstanceId(),
                                     instance.getPrivateDnsName(),
                                     instance.getPublicDnsName(),
                                     instance.getState().toString());
-                            describeInstance.future.complete(description);
+                            op.future.complete(info);
                             idToDescribe.remove(instance.getInstanceId());
                         }
                     }
@@ -298,47 +259,47 @@ public final class Ec2Cloud implements Cloud, Runnable {
             } catch (Exception e) {
                 failureException = e;
             }
-            for (Map.Entry<String, DescribeInstance> entry : idToDescribe.entrySet()) {
+            for (Map.Entry<String, DescribeInstanceOp> entry : idToDescribe.entrySet()) {
                 entry.getValue().future.completeExceptionally(failureException);
             }
         } else if (!describeAlls.isEmpty()) {
             try {
-                if (settings.keyPair.isEmpty()) {
+                if (settings.keyPair().isEmpty()) {
                     throw new RuntimeException("You must specify a keypair with --keypair in " +
                         "order to describe all AWS instances.");
                 }
                 DescribeInstancesRequest req = new DescribeInstancesRequest().withFilters(
-                    new Filter("key-name", Collections.singletonList(settings.keyPair)));
-                ArrayList<InstanceDescription> all = new ArrayList<>();
+                    new Filter("key-name", Collections.singletonList(settings.keyPair())));
+                ArrayList<Ec2InstanceInfo> all = new ArrayList<>();
                 DescribeInstancesResult result = ec2.describeInstances(req);
                 for (Reservation reservation : result.getReservations()) {
                     for (Instance instance : reservation.getInstances()) {
-                        all.add(new InstanceDescription(instance.getInstanceId(),
+                        all.add(new Ec2InstanceInfo(instance.getInstanceId(),
                             instance.getPrivateDnsName(),
                             instance.getPublicDnsName(),
                             instance.getState().toString()));
                     }
                 }
-                for (DescribeInstances describeAll : describeAlls) {
+                for (DescribeAllInstancesOp describeAll : describeAlls) {
                     describeAll.future.complete(all);
                 }
             } catch (Exception e) {
-                for (DescribeInstances describeAll : describeAlls) {
+                for (DescribeAllInstancesOp describeAll : describeAlls) {
                     describeAll.future.completeExceptionally(e);
                 }
             }
         } else if (!terminates.isEmpty()) {
-            Map<String, TerminateInstance> idToTerminate = new HashMap<>();
-            for (Iterator<TerminateInstance> iter = terminates.iterator(); iter.hasNext();
+            Map<String, TerminateInstanceOp> idToTerminate = new HashMap<>();
+            for (Iterator<TerminateInstanceOp> iter = terminates.iterator(); iter.hasNext();
                      iter.remove()) {
-                TerminateInstance terminate = iter.next();
-                idToTerminate.put(terminate.instanceId, terminate);
+                TerminateInstanceOp op = iter.next();
+                idToTerminate.put(op.instanceId, op);
             }
             TerminateInstancesRequest req = new TerminateInstancesRequest()
                 .withInstanceIds(idToTerminate.keySet());
             ec2.terminateInstances(req);
-            for (TerminateInstance terminateInstance : idToTerminate.values()) {
-                terminateInstance.future.complete(null);
+            for (TerminateInstanceOp op : idToTerminate.values()) {
+                CastleUtil.completeNull(op.future);
             }
         }
         updateNextCallTime(CALL_DELAY_MS);
@@ -358,67 +319,37 @@ public final class Ec2Cloud implements Cloud, Runnable {
         ec2.shutdown();
     }
 
-    @Override
-    public Runner newRunner() {
-        return new Ec2Runner();
+    public synchronized CompletableFuture<String> createInstance(String instanceType, String imageId) {
+        CreateInstanceOp op = new CreateInstanceOp(instanceType, imageId);
+        creates.add(op);
+        updateNextCallTime(COALSCE_DELAY_MS);
+        notifyAll();
+        return op.future;
     }
 
-    @Override
-    public InstanceDescription describeInstance(String instanceId) throws Exception {
-        KafkaFutureImpl<InstanceDescription> future = new KafkaFutureImpl<>();
-        synchronized (this) {
-            describes.add(new DescribeInstance(future, instanceId));
-            updateNextCallTime(COALSCE_DELAY_MS);
-            notifyAll();
-        }
-        return future.get();
+    public synchronized CompletableFuture<Ec2InstanceInfo> describeInstance(String instanceId)
+            throws Exception {
+        DescribeInstanceOp op = new DescribeInstanceOp(instanceId);
+        describes.add(op);
+        updateNextCallTime(COALSCE_DELAY_MS);
+        notifyAll();
+        return op.future;
     }
 
-    @Override
-    public Collection<InstanceDescription> describeInstances() throws Exception {
-        KafkaFutureImpl<Collection<InstanceDescription>> future = new KafkaFutureImpl<>();
-        synchronized (this) {
-            describeAlls.add(new DescribeInstances(future));
-            updateNextCallTime(COALSCE_DELAY_MS);
-            notifyAll();
-        }
-        return future.get();
+    public synchronized CompletableFuture<Collection<Ec2InstanceInfo>> describeAllInstances() throws Exception {
+        DescribeAllInstancesOp op = new DescribeAllInstancesOp();
+        describeAlls.add(op);
+        updateNextCallTime(COALSCE_DELAY_MS);
+        notifyAll();
+        return op.future;
     }
 
-    private KafkaFutureImpl<Void> terminateInstance(String instanceId) {
-        KafkaFutureImpl<Void> future = new KafkaFutureImpl<>();
-        synchronized (this) {
-            terminates.add(new TerminateInstance(future, instanceId));
-            updateNextCallTime(COALSCE_DELAY_MS);
-            notifyAll();
-        }
-        return future;
-    }
-
-    @Override
-    public void terminateInstances(String... instanceIds) throws Throwable {
-        List<KafkaFutureImpl<Void>> futures = new ArrayList<>();
-        for (String instanceId : instanceIds) {
-            futures.add(terminateInstance(instanceId));
-        }
-        Throwable exception = null;
-        for (KafkaFutureImpl<Void> future : futures) {
-            try {
-                future.get();
-            } catch (ExecutionException e) {
-                if (exception == null) {
-                    exception = e.getCause();
-                }
-            }
-        }
-        if (exception != null) {
-            throw exception;
-        }
-    }
-
-    @Override
-    public RemoteCommand remoteCommand(CastleNode node) {
-        return new CastleRemoteCommand(node);
+    public synchronized CompletableFuture<Void> terminateInstance(String instanceId) {
+        TerminateInstanceOp op = new TerminateInstanceOp(instanceId);
+        terminates.add(op);
+        updateNextCallTime(COALSCE_DELAY_MS);
+        notifyAll();
+        return op.future;
     }
 
     @Override
