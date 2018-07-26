@@ -38,7 +38,6 @@ public class ZooKeeperRole implements Role {
         this.initialDelayMs = initialDelayMs;
     }
 
-    @Override
     @JsonProperty
     public int initialDelayMs() {
         return initialDelayMs;

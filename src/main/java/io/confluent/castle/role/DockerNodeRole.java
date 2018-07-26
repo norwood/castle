@@ -34,8 +34,6 @@ import java.util.Collection;
 import java.util.function.Function;
 
 public class DockerNodeRole implements Role, UplinkRole {
-    private final int initialDelayMs;
-
     /**
      * The Docker image ID to use.
      */
@@ -65,24 +63,16 @@ public class DockerNodeRole implements Role, UplinkRole {
     private String sshIdentityPath;
 
     @JsonCreator
-    public DockerNodeRole(@JsonProperty("initialDelayMs") int initialDelayMs,
-                          @JsonProperty("imageId") String imageId,
+    public DockerNodeRole(@JsonProperty("imageId") String imageId,
                           @JsonProperty("dockerUser") String dockerUser,
                           @JsonProperty("sshPort") int sshPort,
                           @JsonProperty("containerName") String containerName,
                           @JsonProperty("sshIdentityPath") String sshIdentityPath) {
-        this.initialDelayMs = initialDelayMs;
         this.imageId = imageId == null ? "" : imageId;
         this.dockerUser = dockerUser == null ? "" : dockerUser;
         this.sshPort = sshPort < 0 ? 0 : sshPort;
         this.containerName = containerName == null ? "" : containerName;
         this.sshIdentityPath = sshIdentityPath == null ? "" : sshIdentityPath;
-    }
-
-    @Override
-    @JsonProperty
-    public int initialDelayMs() {
-        return initialDelayMs;
     }
 
     @JsonProperty

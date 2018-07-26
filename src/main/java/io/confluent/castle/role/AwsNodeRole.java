@@ -37,8 +37,6 @@ import java.util.Collection;
 import java.util.function.Function;
 
 public class AwsNodeRole implements Role, UplinkRole {
-    private final int initialDelayMs;
-
     private static final String IMAGE_ID_DEFAULT = "ami-29ebb519";
 
     private static final String INSTANCE_TYPE_DEFAULT = "m1.small";
@@ -111,8 +109,7 @@ public class AwsNodeRole implements Role, UplinkRole {
     private String region;
 
     @JsonCreator
-    public AwsNodeRole(@JsonProperty("initialDelayMs") int initialDelayMs,
-                       @JsonProperty("keyPair") String keyPair,
+    public AwsNodeRole(@JsonProperty("keyPair") String keyPair,
                        @JsonProperty("securityGroup") String securityGroup,
                        @JsonProperty("imageId") String imageId,
                        @JsonProperty("instanceType") String instanceType,
@@ -124,7 +121,6 @@ public class AwsNodeRole implements Role, UplinkRole {
                        @JsonProperty("publicDns") String publicDns,
                        @JsonProperty("instanceId") String instanceId,
                        @JsonProperty("region") String region) {
-        this.initialDelayMs = initialDelayMs;
         this.keyPair = keyPair == null ? "" : keyPair;
         this.securityGroup = securityGroup == null ? "" : securityGroup;
         this.imageId = imageId == null ? IMAGE_ID_DEFAULT : imageId;
@@ -137,12 +133,6 @@ public class AwsNodeRole implements Role, UplinkRole {
         this.publicDns = publicDns == null ? "" : publicDns;
         this.instanceId = instanceId == null ? "" : instanceId;
         this.region = region == null ? "" : region;
-    }
-
-    @Override
-    @JsonProperty
-    public int initialDelayMs() {
-        return initialDelayMs;
     }
 
     @JsonProperty

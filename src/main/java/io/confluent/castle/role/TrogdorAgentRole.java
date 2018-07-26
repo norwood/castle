@@ -36,7 +36,6 @@ public class TrogdorAgentRole implements Role {
         this.initialDelayMs = initialDelayMs;
     }
 
-    @Override
     @JsonProperty
     public int initialDelayMs() {
         return initialDelayMs;

@@ -31,7 +31,7 @@ public final class UbuntuSetupAction extends Action {
         super(new ActionId(TYPE, scope),
             new TargetId[] {},
             new String[] {},
-            role.initialDelayMs());
+            0);
     }
 
     @Override

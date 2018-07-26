@@ -30,6 +30,7 @@ import java.util.Collection;
 
 public class JmxDumperRole implements Role {
     public static final String CLASS_NAME = "io.confluent.castle.jmx.JmxDumper";
+
     private final int initialDelayMs;
 
     private final JmxDumpersConfig conf;
@@ -41,7 +42,6 @@ public class JmxDumperRole implements Role {
         this.conf = (conf == null) ? new JmxDumpersConfig() : conf;
     }
 
-    @Override
     @JsonProperty
     public int initialDelayMs() {
         return initialDelayMs;

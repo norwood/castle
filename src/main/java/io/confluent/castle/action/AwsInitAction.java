@@ -41,7 +41,7 @@ public final class AwsInitAction extends Action {
         super(new ActionId(TYPE, scope),
             new TargetId[] {},
             new String[] {},
-            role.initialDelayMs());
+            0);
         this.role = role;
     }
 

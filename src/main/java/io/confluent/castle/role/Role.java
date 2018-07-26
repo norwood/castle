@@ -45,11 +45,6 @@ import java.util.Collection;
     })
 public interface Role {
     /**
-     * Get the initial delay in milliseconds to use.
-     */
-    int initialDelayMs();
-
-    /**
      * Create the actions for this node.
      *
      * @param nodeName      The name of this node.

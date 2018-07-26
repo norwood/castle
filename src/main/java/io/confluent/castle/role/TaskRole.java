@@ -25,7 +25,6 @@ import io.confluent.castle.action.TaskStartAction;
 import io.confluent.castle.action.TaskStatusAction;
 import io.confluent.castle.action.TaskStopAction;
 import io.confluent.castle.common.CastleUtil;
-import org.apache.kafka.trogdor.task.TaskSpec;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -69,7 +68,6 @@ public class TaskRole implements Role {
         }
     }
 
-    @Override
     @JsonProperty
     public int initialDelayMs() {
         return initialDelayMs;

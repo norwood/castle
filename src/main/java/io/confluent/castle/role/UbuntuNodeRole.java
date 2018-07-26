@@ -26,17 +26,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 public class UbuntuNodeRole implements Role {
-    private final int initialDelayMs;
-
     @JsonCreator
-    public UbuntuNodeRole(@JsonProperty("initialDelayMs") int initialDelayMs) {
-        this.initialDelayMs = initialDelayMs;
-    }
-
-    @Override
-    @JsonProperty
-    public int initialDelayMs() {
-        return initialDelayMs;
+    public UbuntuNodeRole() {
     }
 
     @Override

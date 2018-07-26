@@ -35,7 +35,6 @@ public class CollectdRole implements Role {
         this.initialDelayMs = initialDelayMs;
     }
 
-    @Override
     @JsonProperty
     public int initialDelayMs() {
         return initialDelayMs;

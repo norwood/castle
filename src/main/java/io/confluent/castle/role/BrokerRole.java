@@ -55,7 +55,6 @@ public class BrokerRole implements Role {
         }
     }
 
-    @Override
     @JsonProperty
     public int initialDelayMs() {
         return initialDelayMs;
