@@ -73,4 +73,10 @@ public interface Uplink extends AutoCloseable {
      * Shuts down the node we're linked to.  Modify the role.
      */
     CompletableFuture<Void> shutdown() throws Exception;
+
+    /**
+     * Destroys all the nodes that we can find via this uplink, even
+     * if they appear to have nothing to do with our node.
+     */
+    void shutdownAll() throws Exception;
 }

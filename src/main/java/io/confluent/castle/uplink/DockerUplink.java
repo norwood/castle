@@ -27,9 +27,8 @@ import io.confluent.castle.common.CastleLog;
 import io.confluent.castle.common.CastleUtil;
 import io.confluent.castle.role.DockerNodeRole;
 
-import java.util.Arrays;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 /**
  * Represents an uplink to a Docker node.
@@ -108,12 +107,12 @@ public class DockerUplink implements Uplink {
 
     @Override
     public void check() throws Exception {
-        String[] containerNames = cloud.listContainers(node);
+        Set<String> containerNames = cloud.listContainers(node);
         node.log().printf("*** Found container name(s): %s%n", String.join(", ", containerNames));
         if (role.containerName().isEmpty()) {
             CastleLog.printToAll(String.format("*** %s: No docker container name.%n", node.nodeName()),
                 node.log(), cluster.clusterLog());
-        } else if (Arrays.stream(containerNames).collect(Collectors.toSet()).contains(role.containerName())) {
+        } else if (containerNames.contains(role.containerName())) {
             CastleLog.printToAll(String.format("*** %s: Found container name %s.%n",
                 node.nodeName(), role.containerName()),
                 node.log(), cluster.clusterLog());
@@ -133,6 +132,11 @@ public class DockerUplink implements Uplink {
         CompletableFuture<Void> future = new CompletableFuture<>();
         CastleUtil.completeNull(future);
         return future;
+    }
+
+    @Override
+    public void shutdownAll() throws Exception {
+        cloud.shutdownAll(cluster, node);
     }
 
     @Override

@@ -21,21 +21,21 @@ import io.confluent.castle.cluster.CastleCluster;
 import io.confluent.castle.cluster.CastleNode;
 
 /**
- * Checks the status of a node's uplink.
+ * Destroys all nodes.
  */
-public final class UplinkCheckAction extends Action {
-    public final static String TYPE = "uplinkCheck";
+public final class DestroyNodesAction extends Action {
+    public final static String TYPE = "destroyNodes";
 
-    public UplinkCheckAction(String scope) {
+    public DestroyNodesAction(String scope) {
         super(new ActionId(TYPE, scope),
             new TargetId[] {},
             new String[] {},
             0);
     }
 
-    @Override
     public void call(CastleCluster cluster, CastleNode node) throws Throwable {
-        node.log().printf("*** %s: Checking uplink.%n", node.nodeName());
-        node.uplink().check();
+        node.log().printf("*** %s: Destroying all the nodes for uplink %s.%n",
+            node.nodeName(), node.uplink());
+        node.uplink().shutdownAll();
     }
 }

@@ -93,7 +93,8 @@ public class Ec2Uplink implements Uplink {
     public void startup() throws Exception {
         node.log().printf("*** Creating new instance with instance type %s, imageId %s%n",
             role.instanceType(), role.imageId());
-        String instanceId = cloud.createInstance(role.instanceType(), role.imageId()).get();
+        String instanceId = cloud.createInstance(role.instanceType(), role.imageId(),
+            node.nodeIndex()).get();
         role.setInstanceId(instanceId);
 
         // Wait for the DNS to be set up.
@@ -168,6 +169,11 @@ public class Ec2Uplink implements Uplink {
     @Override
     public CompletableFuture<Void> shutdown() throws Exception {
         return cloud.terminateInstance(role.instanceId());
+    }
+
+    @Override
+    public void shutdownAll() throws Exception {
+        cloud.destroyAll(cluster, node);
     }
 
     @Override

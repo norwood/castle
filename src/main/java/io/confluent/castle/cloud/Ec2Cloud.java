@@ -24,9 +24,15 @@ import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.Filter;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.ec2.model.ResourceType;
 import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.RunInstancesResult;
+import com.amazonaws.services.ec2.model.Tag;
+import com.amazonaws.services.ec2.model.TagSpecification;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
+import io.confluent.castle.cluster.CastleCluster;
+import io.confluent.castle.cluster.CastleNode;
+import io.confluent.castle.common.CastleLog;
 import io.confluent.castle.common.CastleUtil;
 import org.apache.kafka.common.utils.Time;
 import org.slf4j.Logger;
@@ -40,6 +46,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public final class Ec2Cloud implements AutoCloseable, Runnable {
     private static final Logger log = LoggerFactory.getLogger(Ec2Cloud.class);
@@ -58,6 +66,8 @@ public final class Ec2Cloud implements AutoCloseable, Runnable {
      */
     private final static int CALL_DELAY_MS = 500;
 
+    private final static Tag CASTLE_TAG = new Tag("CastleNodeVersion", "1");
+
     private final Ec2Settings settings;
 
     private final AmazonEC2 ec2;
@@ -74,16 +84,20 @@ public final class Ec2Cloud implements AutoCloseable, Runnable {
 
     private boolean shouldExit = false;
 
+    private boolean shutdownAllInvoked = false;
+
     private long nextCallTimeMs = 0;
 
     private final static class CreateInstanceOp {
         private final CompletableFuture<String> future = new CompletableFuture<>();
         private final String instanceType;
         private final String imageId;
+        private final int nodeIndex;
 
-        CreateInstanceOp(String instanceType, String imageId) {
+        CreateInstanceOp(String instanceType, String imageId, int nodeIndex) {
             this.instanceType = instanceType;
             this.imageId = imageId;
+            this.nodeIndex = nodeIndex;
         }
     }
 
@@ -214,7 +228,11 @@ public final class Ec2Cloud implements AutoCloseable, Runnable {
                     .withMinCount(batchCreates.size())
                     .withMaxCount(batchCreates.size())
                     .withKeyName(settings.keyPair())
-                    .withSecurityGroups(settings.securityGroup());
+                    .withSecurityGroups(settings.securityGroup())
+                    .withTagSpecifications(
+                        new TagSpecification().withResourceType(ResourceType.Instance).
+                            withTags(CASTLE_TAG));
+
                 RunInstancesResult result = ec2.runInstances(req);
                 Reservation reservation = result.getReservation();
                 Iterator<Instance> instanceIterator = reservation.getInstances().iterator();
@@ -269,7 +287,10 @@ public final class Ec2Cloud implements AutoCloseable, Runnable {
                         "order to describe all AWS instances.");
                 }
                 DescribeInstancesRequest req = new DescribeInstancesRequest().withFilters(
-                    new Filter("key-name", Collections.singletonList(settings.keyPair())));
+                    new Filter("key-name",
+                        Collections.singletonList(settings.keyPair())),
+                    new Filter("tag:" + CASTLE_TAG.getKey(),
+                        Collections.singletonList(CASTLE_TAG.getValue())));
                 ArrayList<Ec2InstanceInfo> all = new ArrayList<>();
                 DescribeInstancesResult result = ec2.describeInstances(req);
                 for (Reservation reservation : result.getReservations()) {
@@ -319,8 +340,9 @@ public final class Ec2Cloud implements AutoCloseable, Runnable {
         ec2.shutdown();
     }
 
-    public synchronized CompletableFuture<String> createInstance(String instanceType, String imageId) {
-        CreateInstanceOp op = new CreateInstanceOp(instanceType, imageId);
+    public synchronized CompletableFuture<String> createInstance(String instanceType,
+                String imageId, int nodeIndex) {
+        CreateInstanceOp op = new CreateInstanceOp(instanceType, imageId, nodeIndex);
         creates.add(op);
         updateNextCallTime(COALSCE_DELAY_MS);
         notifyAll();
@@ -336,7 +358,8 @@ public final class Ec2Cloud implements AutoCloseable, Runnable {
         return op.future;
     }
 
-    public synchronized CompletableFuture<Collection<Ec2InstanceInfo>> describeAllInstances() throws Exception {
+    public synchronized CompletableFuture<Collection<Ec2InstanceInfo>> describeAllInstances()
+                throws Exception {
         DescribeAllInstancesOp op = new DescribeAllInstancesOp();
         describeAlls.add(op);
         updateNextCallTime(COALSCE_DELAY_MS);
@@ -350,6 +373,29 @@ public final class Ec2Cloud implements AutoCloseable, Runnable {
         updateNextCallTime(COALSCE_DELAY_MS);
         notifyAll();
         return op.future;
+    }
+
+    public void destroyAll(CastleCluster cluster, CastleNode node) throws Exception {
+        synchronized (this) {
+            if (shutdownAllInvoked) {
+                return;
+            }
+            shutdownAllInvoked = true;
+        }
+        Collection<Ec2InstanceInfo> infos = describeAllInstances().get();
+        if (infos.isEmpty()) {
+            CastleLog.printToAll(String.format(
+                "*** %s: No EC2 instances found.%n", node.nodeName()),
+                node.log(), cluster.clusterLog());
+            return;
+        }
+        CastleLog.printToAll(String.format("*** %s: Terminating EC2 instance(s): %s.%n",
+            node.nodeName(), String.join(", ",
+                infos.stream().map(info -> info.instanceId()).collect(Collectors.toSet()))),
+            node.log(), cluster.clusterLog());
+        for (Ec2InstanceInfo info : infos) {
+            terminateInstance(info.instanceId());
+        }
     }
 
     @Override

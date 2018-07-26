@@ -20,6 +20,7 @@ package io.confluent.castle.role;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.confluent.castle.action.Action;
+import io.confluent.castle.action.DestroyNodesAction;
 import io.confluent.castle.action.DockerDestroyAction;
 import io.confluent.castle.action.DockerInitAction;
 import io.confluent.castle.action.UplinkCheckAction;
@@ -115,6 +116,7 @@ public class DockerNodeRole implements Role, UplinkRole {
     @Override
     public Collection<Action> createActions(String nodeName) {
         ArrayList<Action> actions = new ArrayList<>();
+        actions.add(new DestroyNodesAction(nodeName));
         actions.add(new DockerDestroyAction(nodeName, this));
         actions.add(new DockerInitAction(nodeName, this));
         actions.add(new UplinkCheckAction(nodeName));

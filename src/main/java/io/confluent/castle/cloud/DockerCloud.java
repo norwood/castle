@@ -21,6 +21,7 @@ import io.confluent.castle.action.ActionPaths;
 import io.confluent.castle.cluster.CastleCluster;
 import io.confluent.castle.cluster.CastleNode;
 import io.confluent.castle.command.NodeShellRunner;
+import io.confluent.castle.common.CastleLog;
 import io.confluent.castle.common.CastleUtil;
 import io.confluent.castle.role.DockerNodeRole;
 
@@ -31,6 +32,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -42,6 +45,8 @@ public final class DockerCloud implements AutoCloseable {
     private final ExecutorService executorService;
 
     private Future<Void> networkCheckFuture;
+
+    private boolean shutdownAllInvoked = false;
 
     public DockerCloud() {
         this.executorService = Executors.newSingleThreadScheduledExecutor(
@@ -74,11 +79,8 @@ public final class DockerCloud implements AutoCloseable {
         run.addAll(Arrays.asList(new String[] {"docker", "run", "-d",
             "--privileged", "--memory=3G", "--memory-swappiness=1",
             "--name", containerName, "-h", containerName,
-            "--network=" + NETWORK}));
-        if (role.sshPort() > 0) {
-            run.add("-p");
-            run.add(String.format("%d:22", role.sshPort()));
-        }
+            "--network=" + NETWORK,
+            "-p", "::22"}));
         if (!cluster.conf().castlePath().isEmpty()) {
             run.add("-v");
             run.add(String.format("%s:%s", cluster.conf().castlePath(),
@@ -130,7 +132,7 @@ public final class DockerCloud implements AutoCloseable {
             throw new RuntimeException("Expected to find a colon in the " +
                 "'docker port' output for " + node.nodeName());
         }
-        String portString = text.substring(index);
+        String portString = text.substring(index + 1);
         int port = Integer.parseInt(portString);
         return port;
     }
@@ -180,7 +182,7 @@ public final class DockerCloud implements AutoCloseable {
     /**
      * List the containers which are running with our docker network.
      */
-    public String[] listContainers(CastleNode node) throws Exception {
+    public TreeSet<String> listContainers(CastleNode node) throws Exception {
         getNetworkCheckFuture(node).get();
         StringBuilder stringBuilder = new StringBuilder();
         new NodeShellRunner(node,
@@ -189,12 +191,13 @@ public final class DockerCloud implements AutoCloseable {
             setCaptureOutput(stringBuilder).
             setCaptureStderr(false).
             mustRun();
-        String[] lines = stringBuilder.toString().trim().split(System.lineSeparator());
-        Arrays.sort(lines);
-        for (int i = 0; i < lines.length; i++) {
-            lines[i] = lines[i].trim();
+        TreeSet<String> containers = new TreeSet<>();
+        for (String line : stringBuilder.toString().trim().split(System.lineSeparator())) {
+            if (!line.isEmpty()) {
+                containers.add(line);
+            }
         }
-        return lines;
+        return containers;
     }
 
     private static class NetworkCheck implements Callable<Void> {
@@ -230,5 +233,31 @@ public final class DockerCloud implements AutoCloseable {
         new NodeShellRunner(node, kill).run();
         List<String> rm = Arrays.asList(new String[] {"docker", "rm", containerName});
         new NodeShellRunner(node, rm).run();
+    }
+
+    public void shutdownAll(CastleCluster cluster, CastleNode node) throws Exception {
+        synchronized (this) {
+            if (shutdownAllInvoked) {
+                return;
+            }
+            shutdownAllInvoked = true;
+        }
+        getNetworkCheckFuture(node).get();
+        Set<String> containers = listContainers(node);
+        if (containers.isEmpty()) {
+            CastleLog.printToAll(String.format(
+                    "*** %s: No docker containers found.%n", node.nodeName()),
+                node.log(), cluster.clusterLog());
+            return;
+        }
+        CastleLog.printToAll(String.format("*** %s: Removing docker container(s): %s.%n",
+            node.nodeName(), String.join(", ", containers)),
+            node.log(), cluster.clusterLog());
+        List<String> killAll = new ArrayList<>(Arrays.asList(new String[] {"docker", "kill"}));
+        killAll.addAll(containers);
+        new NodeShellRunner(node, killAll).run();
+        List<String> rmAll = new ArrayList<>(Arrays.asList(new String[] {"docker", "rm"}));
+        rmAll.addAll(containers);
+        new NodeShellRunner(node, rmAll).run();
     }
 }

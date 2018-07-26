@@ -27,6 +27,7 @@ import io.confluent.castle.tool.CastleTool;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 
 public class CastleClusterSpec {
     private final CastleClusterConf conf;
@@ -78,7 +79,7 @@ public class CastleClusterSpec {
      * Each node will get a separate copy of each role object.
      */
     public Map<String, Map<Class<? extends Role>, Role>> nodesToRoles() throws Exception {
-        Map<String, Map<Class<? extends Role>, Role>> nodesToRoles = new HashMap<>();
+        Map<String, Map<Class<? extends Role>, Role>> nodesToRoles = new TreeMap<>();
         for (Map.Entry<String, CastleNodeSpec> entry : nodes.entrySet()) {
             String nodeName = entry.getKey();
             Map<Class<? extends Role>, Role> roleMap = new HashMap<>();

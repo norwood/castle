@@ -32,12 +32,10 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public final class CastleLog implements AutoCloseable, Logger {
-    public static final String CLUSTER = "cluster";
-
     private static final Logger log = LoggerFactory.getLogger(CastleLog.class);
 
     private final String name;
-    private final OutputStream outputStream;
+    private OutputStream outputStream;
     private final boolean enableDebug;
 
     public static CastleLog fromFile(String logBase, String nodeName, boolean enableDebug) throws IOException {
@@ -84,7 +82,7 @@ public final class CastleLog implements AutoCloseable, Logger {
         try {
             String prefix = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").
                 format(new Date()) + " ";
-            outputStream.write((prefix + str).getBytes(StandardCharsets.UTF_8));
+            write((prefix + str).getBytes(StandardCharsets.UTF_8));
             if (log.isTraceEnabled()) {
                 if ((str.length() > 0) && (str.charAt(str.length() - 1) == '\n')) {
                     str = str.substring(0, str.length() - 1);
@@ -113,13 +111,24 @@ public final class CastleLog implements AutoCloseable, Logger {
         print(msg + System.lineSeparator());
     }
 
-    public void write(byte[] buf, int off, int len) throws IOException {
-        outputStream.write(buf, off, len);
+    public synchronized void write(byte[] buf) throws IOException {
+        if (outputStream != null) {
+            outputStream.write(buf);
+        }
+    }
+
+    public synchronized void write(byte[] buf, int off, int len) throws IOException {
+        if (outputStream != null) {
+            outputStream.write(buf, off, len);
+        }
     }
 
     @Override
-    public void close() throws IOException {
-        outputStream.close();
+    public synchronized void close() throws IOException {
+        if (outputStream != null) {
+            outputStream.close();
+        }
+        outputStream = null;
     }
 
     @Override
