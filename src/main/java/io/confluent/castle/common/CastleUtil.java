@@ -273,10 +273,12 @@ public final class CastleUtil {
             args("-n", "--", "jcmd", "|", "grep", processPattern).
             run();
         if (retVal == 255) {
-            cluster.clusterLog().printf("Unable to determine if %s is running.%n", processPattern);
+            cluster.clusterLog().printf("%s: Unable to determine if %s is running.%n",
+                node.nodeName(), processPattern);
             return CastleReturnCode.TOOL_FAILED;
         } else if (retVal == 1) {
-            cluster.clusterLog().printf("%s: %s is not running.%n", node.nodeName(), processPattern);
+            cluster.clusterLog().printf("%s: %s is not running.%n",
+                node.nodeName(), processPattern);
             return CastleReturnCode.CLUSTER_FAILED;
         }
         String pidString = stringBuilder.toString();
