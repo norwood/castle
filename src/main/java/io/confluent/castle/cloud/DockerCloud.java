@@ -179,12 +179,11 @@ public final class DockerCloud implements AutoCloseable {
         StringBuilder stringBuilder = new StringBuilder();
         new NodeShellRunner(node,
             Arrays.asList(new String[] { "docker", "ps",
-                "-f=network=" + NETWORK, "-q", "--format", "'{{.Name}}'"}),
+                "-f=network=" + NETWORK, "-q", "--format", "{{.Names}}"}),
             stringBuilder).
             setRedirectErrorStream(false).
             mustRun();
-        stringBuilder.toString();
-        String[] lines = stringBuilder.toString().split(System.lineSeparator());
+        String[] lines = stringBuilder.toString().trim().split(System.lineSeparator());
         Arrays.sort(lines);
         for (int i = 0; i < lines.length; i++) {
             lines[i] = lines[i].trim();

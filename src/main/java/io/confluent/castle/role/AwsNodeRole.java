@@ -24,6 +24,7 @@ import io.confluent.castle.action.AwsDestroyAction;
 import io.confluent.castle.action.AwsInitAction;
 import io.confluent.castle.action.SaveLogsAction;
 import io.confluent.castle.action.SourceSetupAction;
+import io.confluent.castle.action.UplinkCheckAction;
 import io.confluent.castle.cloud.CloudCache;
 import io.confluent.castle.cloud.Ec2Cloud;
 import io.confluent.castle.cloud.Ec2Settings;
@@ -210,11 +211,12 @@ public class AwsNodeRole implements Role, UplinkRole {
     @Override
     public Collection<Action> createActions(String nodeName) {
         ArrayList<Action> actions = new ArrayList<>();
-        actions.add(new AwsInitAction(nodeName, this));
         actions.add(new AwsDestroyAction(nodeName, this));
+        actions.add(new AwsDestroyAction(nodeName, this));
+        actions.add(new AwsInitAction(nodeName, this));
         actions.add(new SaveLogsAction(nodeName));
         actions.add(new SourceSetupAction(nodeName));
-        actions.add(new AwsDestroyAction(nodeName, this));
+        actions.add(new UplinkCheckAction(nodeName));
         return actions;
     }
 

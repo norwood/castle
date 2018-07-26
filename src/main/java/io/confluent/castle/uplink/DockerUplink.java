@@ -109,7 +109,7 @@ public class DockerUplink implements Uplink {
     @Override
     public void check() throws Exception {
         String[] containerNames = cloud.listContainers(node);
-        node.log().printf("*** Found container name(s) %s%n", String.join(", ", containerNames));
+        node.log().printf("*** Found container name(s): %s%n", String.join(", ", containerNames));
         if (role.containerName().isEmpty()) {
             CastleLog.printToAll(String.format("*** %s: No docker container name.%n", node.nodeName()),
                 node.log(), cluster.clusterLog());

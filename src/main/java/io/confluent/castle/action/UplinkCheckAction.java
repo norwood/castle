@@ -23,10 +23,10 @@ import io.confluent.castle.cluster.CastleNode;
 /**
  * Checks the status of a node's uplink.
  */
-public final class NodeCheckAction extends Action {
-    public final static String TYPE = "nodeCheck";
+public final class UplinkCheckAction extends Action {
+    public final static String TYPE = "uplinkCheck";
 
-    public NodeCheckAction(String scope) {
+    public UplinkCheckAction(String scope) {
         super(new ActionId(TYPE, scope),
             new TargetId[] {},
             new String[] {},
