@@ -48,7 +48,7 @@ public class TrogdorAgentRole implements Role {
         actions.add(new TrogdorStartAction(TrogdorDaemonType.AGENT,
             nodeName, initialDelayMs));
         actions.add(new TrogdorStatusAction(TrogdorDaemonType.AGENT,
-            nodeName, initialDelayMs));
+            nodeName));
         actions.add(new TrogdorStopAction(TrogdorDaemonType.AGENT,
             nodeName, initialDelayMs));
         return actions;

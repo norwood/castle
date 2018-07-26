@@ -34,7 +34,7 @@ public final class ZooKeeperStopAction extends Action {
                 new TargetId(BrokerStopAction.TYPE)
             },
             new String[] {},
-            role.initialDelayMs());
+            0);
     }
 
     @Override

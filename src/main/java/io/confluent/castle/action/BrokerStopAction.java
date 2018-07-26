@@ -34,7 +34,7 @@ public final class BrokerStopAction extends Action {
                 new TargetId(JmxDumperStopAction.TYPE, scope)
             },
             new String[] {},
-            role.initialDelayMs());
+            0);
     }
 
     @Override

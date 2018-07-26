@@ -24,11 +24,11 @@ import io.confluent.castle.common.CastleUtil;
 public class TrogdorStatusAction extends Action {
     private final TrogdorDaemonType daemonType;
 
-    public TrogdorStatusAction(TrogdorDaemonType daemonType, String nodeName, int initialDelayMs) {
+    public TrogdorStatusAction(TrogdorDaemonType daemonType, String nodeName) {
         super(new ActionId(daemonType.statusType(), nodeName),
             new TargetId[] {},
             new String[] {},
-            initialDelayMs);
+            0);
         this.daemonType = daemonType;
     }
 

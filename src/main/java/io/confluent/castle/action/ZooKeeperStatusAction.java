@@ -32,7 +32,7 @@ public final class ZooKeeperStatusAction extends Action {
         super(new ActionId(TYPE, scope),
             new TargetId[] {},
             new String[] {},
-            role.initialDelayMs());
+            0);
     }
 
     @Override

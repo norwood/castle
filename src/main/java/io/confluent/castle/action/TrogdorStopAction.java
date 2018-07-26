@@ -31,7 +31,7 @@ public final class TrogdorStopAction extends Action {
         super(new ActionId(daemonType.stopType(), nodeName),
             new TargetId[] {},
             new String[] {},
-            initialDelayMs);
+            0);
         this.daemonType = daemonType;
     }
 

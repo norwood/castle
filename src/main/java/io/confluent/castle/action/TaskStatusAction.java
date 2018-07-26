@@ -42,7 +42,7 @@ public class TaskStatusAction extends Action  {
                 new TargetId(DaemonStatusAction.TYPE)
             },
             new String[] {},
-            role.initialDelayMs());
+            0);
         this.role = role;
     }
 

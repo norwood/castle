@@ -48,7 +48,7 @@ public class TrogdorCoordinatorRole implements Role {
         actions.add(new TrogdorStartAction(TrogdorDaemonType.COORDINATOR,
             nodeName, initialDelayMs));
         actions.add(new TrogdorStatusAction(TrogdorDaemonType.COORDINATOR,
-            nodeName, initialDelayMs));
+            nodeName));
         actions.add(new TrogdorStopAction(TrogdorDaemonType.COORDINATOR,
             nodeName, initialDelayMs));
         return actions;
