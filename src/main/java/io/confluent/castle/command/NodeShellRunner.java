@@ -120,19 +120,21 @@ public class NodeShellRunner {
                 stderrBuilders.add(captureOutput);
             }
         }
+        OutputRedirector stdoutRedirector, stderrRedirector;
         StringBuilder errorStringBuilder = null;
-        if (!logOutputOnSuccess) {
-            errorStringBuilder = new StringBuilder();
-            stdoutBuilders.add(errorStringBuilder);
-            stderrBuilders.add(errorStringBuilder);
-        }
         try {
             node.log().printf("** %s: RUNNING %s%n", node.nodeName(), Command.joinArgs(commandLine));
             process = builder.start();
-            OutputRedirector stdoutRedirector =
-                new OutputRedirector(process.getInputStream(), stdoutBuilders, node.log());
-            OutputRedirector stderrRedirector =
-                new OutputRedirector(process.getErrorStream(), stderrBuilders, node.log());
+            if (logOutputOnSuccess) {
+                stdoutRedirector = new OutputRedirector(process.getInputStream(), stdoutBuilders, node.log());
+                stderrRedirector = new OutputRedirector(process.getErrorStream(), stderrBuilders, node.log());
+            } else {
+                errorStringBuilder = new StringBuilder();
+                stdoutBuilders.add(errorStringBuilder);
+                stderrBuilders.add(errorStringBuilder);
+                stdoutRedirector = new OutputRedirector(process.getInputStream(), stdoutBuilders, null);
+                stderrRedirector = new OutputRedirector(process.getErrorStream(), stderrBuilders, null);
+            }
             stdoutRedirectorThread = new Thread(stdoutRedirector, "CastleSshStdout_" + node.nodeName());
             stdoutRedirectorThread.start();
             stderrRedirectorThread = new Thread(stderrRedirector, "CastleSshStderr_" + node.nodeName());
