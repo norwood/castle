@@ -155,6 +155,7 @@ public final class DockerCloud implements AutoCloseable {
         StringBuilder stringBuilder = new StringBuilder();
         if (new NodeShellRunner(node, run, stringBuilder).
                 setRedirectErrorStream(false).
+                setLogOutputOnSuccess(false).
                 run() != 0) {
             throw new RuntimeException("Failed to get the ssh key file for " + containerName);
         }
@@ -202,7 +203,9 @@ public final class DockerCloud implements AutoCloseable {
         public Void call() throws Exception {
             List<String> inspect = Arrays.asList(new String[] {
                 "docker", "network", "inspect", NETWORK});
-            if (new NodeShellRunner(node, inspect, null).run() == 0) {
+            if (new NodeShellRunner(node, inspect, null).
+                    setLogOutputOnSuccess(false).
+                    run() == 0) {
                 node.log().printf("** %s is running.%n", NETWORK);
                 return null;
             }

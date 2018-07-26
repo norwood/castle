@@ -40,12 +40,14 @@ public class NodeShellRunner {
         private final InputStream output;
         private final StringBuilder stringBuilder;
         private final CastleLog castleLog;
+        private final StringBuilder errorStringBuilder;
 
         OutputRedirector(InputStream output, StringBuilder stringBuilder,
-                         CastleLog castleLog) {
+                         CastleLog castleLog, StringBuilder errorStringBuilder) {
             this.output = output;
             this.stringBuilder = stringBuilder;
             this.castleLog = castleLog;
+            this.errorStringBuilder = errorStringBuilder;
         }
 
         @Override
@@ -57,7 +59,11 @@ public class NodeShellRunner {
                     if (ret == -1) {
                         break;
                     }
-                    castleLog.write(arr, 0, ret);
+                    if (errorStringBuilder == null) {
+                        castleLog.write(arr, 0, ret);
+                    } else {
+                        errorStringBuilder.append(new String(arr, StandardCharsets.UTF_8));
+                    }
                     if (stringBuilder != null) {
                         stringBuilder.append(new String(arr, StandardCharsets.UTF_8));
                     }
@@ -77,6 +83,8 @@ public class NodeShellRunner {
 
     private boolean redirectErrorStream = true;
 
+    private StringBuilder errorStringBuilder = null;
+
     public NodeShellRunner(CastleNode node, List<String> commandLine, StringBuilder stringBuilder) {
         this.node = node;
         this.commandLine = commandLine;
@@ -88,18 +96,27 @@ public class NodeShellRunner {
         return this;
     }
 
+    public NodeShellRunner setLogOutputOnSuccess(boolean logOutputOnSuccess) {
+        if (logOutputOnSuccess) {
+            this.errorStringBuilder = new StringBuilder();
+        } else {
+            this.errorStringBuilder = null;
+        }
+        return this;
+    }
+
     public int run() throws Exception {
         ProcessBuilder builder = new ProcessBuilder(commandLine);
         builder.redirectErrorStream(redirectErrorStream);
         Process process = null;
         Thread outputRedirectorThread = null;
-        int retCode;
+        int retCode = 1;
         try {
             node.log().printf("** %s: RUNNING %s%n", node.nodeName(),
                 Command.joinArgs(commandLine));
             process = builder.start();
             OutputRedirector outputRedirector =
-                new OutputRedirector(process.getInputStream(), stringBuilder, node.log());
+                new OutputRedirector(process.getInputStream(), stringBuilder, node.log(), errorStringBuilder);
             outputRedirectorThread = new Thread(outputRedirector, "CastleSsh_" + node.nodeName());
             outputRedirectorThread.start();
             retCode = process.waitFor();
@@ -113,6 +130,9 @@ public class NodeShellRunner {
             }
             if (outputRedirectorThread != null) {
                 outputRedirectorThread.join();
+            }
+            if ((errorStringBuilder != null) && (retCode != 0)) {
+                node.log().print(errorStringBuilder.toString());
             }
         }
         return retCode;
