@@ -186,7 +186,7 @@ public final class DockerCloud implements AutoCloseable {
         getNetworkCheckFuture(node).get();
         StringBuilder stringBuilder = new StringBuilder();
         new NodeShellRunner(node,
-            Arrays.asList(new String[] { "docker", "ps",
+            Arrays.asList(new String[] { "docker", "ps", "-a", "--no-trunc",
                 "-f=network=" + NETWORK, "-q", "--format", "{{.Names}}"})).
             setCaptureOutput(stringBuilder).
             setCaptureStderr(false).
