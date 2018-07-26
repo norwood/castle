@@ -34,6 +34,7 @@ import java.util.concurrent.Callable;
 
 import static io.confluent.castle.action.ActionPaths.KAFKA_CONF;
 import static io.confluent.castle.action.ActionPaths.KAFKA_OPLOGS;
+import static io.confluent.castle.action.ActionPaths.KAFKA_ROOT;
 import static io.confluent.castle.role.BrokerRole.KAFKA_CLASS_NAME;
 import static io.confluent.castle.action.ActionPaths.KAFKA_LOGS;
 
@@ -85,7 +86,7 @@ public final class BrokerStartAction extends Action {
         return new String[] {"-n", "--",
             "sudo", "rm", "-rf", KAFKA_OPLOGS, KAFKA_LOGS, KAFKA_CONF, "&&",
             "sudo", "mkdir", "-p", KAFKA_OPLOGS, KAFKA_LOGS, KAFKA_CONF, "&&",
-            "sudo", "chown", "-R", "`whoami`", KAFKA_OPLOGS, KAFKA_LOGS, KAFKA_CONF};
+            "sudo", "chown", "`whoami`", KAFKA_ROOT, KAFKA_OPLOGS, KAFKA_LOGS, KAFKA_CONF};
     }
 
     public String[] createRunDaemonCommandLine() {

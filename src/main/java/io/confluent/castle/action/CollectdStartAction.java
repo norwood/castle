@@ -68,7 +68,7 @@ public final class CollectdStartAction extends Action {
         return new String[] {"-n", "--",
             "sudo", "rm", "-rf", COLLECTD_ROOT, COLLECTD_LOGS, "&&",
             "sudo", "mkdir", "-p", COLLECTD_ROOT, COLLECTD_LOGS, COLLECTD_LOGS + "/csv", "&&",
-            "sudo", "chown", "-R", "`whoami`", COLLECTD_ROOT, COLLECTD_LOGS};
+            "sudo", "chown", "`whoami`", COLLECTD_ROOT, COLLECTD_LOGS, COLLECTD_LOGS + "/csv"};
     }
 
     private File writeCollectdConfig(CastleCluster cluster, CastleNode node) throws IOException {

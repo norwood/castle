@@ -32,6 +32,7 @@ import java.util.concurrent.Callable;
 import static io.confluent.castle.action.ActionPaths.ZK_CONF;
 import static io.confluent.castle.action.ActionPaths.ZK_LOGS;
 import static io.confluent.castle.action.ActionPaths.ZK_OPLOGS;
+import static io.confluent.castle.action.ActionPaths.ZK_ROOT;
 
 public class ZooKeeperStartAction extends Action  {
     public final static String TYPE = "zooKeeperStart";
@@ -73,7 +74,7 @@ public class ZooKeeperStartAction extends Action  {
         return new String[]{"-n", "--",
             "sudo", "rm", "-rf", ZK_OPLOGS, ZK_LOGS, ZK_CONF, "&&",
             "sudo", "mkdir", "-p", ZK_OPLOGS, ZK_LOGS, ZK_CONF, "&&",
-            "sudo", "chown", "-R", "`whoami`", ZK_OPLOGS, ZK_LOGS, ZK_CONF
+            "sudo", "chown", "`whoami`", ZK_ROOT, ZK_OPLOGS, ZK_LOGS, ZK_CONF
         };
     }
 

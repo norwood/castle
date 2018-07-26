@@ -67,7 +67,7 @@ public final class JmxDumperStartAction extends Action {
         return new String[] {"-n", "--",
             "sudo", "rm", "-rf", JMX_DUMPER_ROOT, JMX_DUMPER_LOGS, "&&",
             "sudo", "mkdir", "-p", JMX_DUMPER_ROOT, JMX_DUMPER_LOGS, "&&",
-            "sudo", "chown", "-R", "`whoami`", JMX_DUMPER_ROOT, JMX_DUMPER_LOGS};
+            "sudo", "chown", "`whoami`", JMX_DUMPER_ROOT, JMX_DUMPER_LOGS};
     }
 
     private File writeJmxDumperConf(CastleCluster cluster, CastleNode node) throws IOException {

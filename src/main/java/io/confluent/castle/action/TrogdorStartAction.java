@@ -75,7 +75,8 @@ public class TrogdorStartAction extends Action  {
         return new String[]{"-n", "--",
             "sudo", "rm", "-rf", daemonType.confDir(), daemonType.logDir(), "&&",
             "sudo", "mkdir", "-p", daemonType.confDir(), daemonType.logDir(), "&&",
-            "sudo", "chown", "-R", "`whoami`", daemonType.confDir(), daemonType.logDir()
+            "sudo", "chown", "`whoami`", daemonType.root(), daemonType.confDir(),
+                daemonType.logDir()
         };
     }
 

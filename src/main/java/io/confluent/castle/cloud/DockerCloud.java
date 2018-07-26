@@ -92,12 +92,12 @@ public final class DockerCloud implements AutoCloseable {
                 ActionPaths.KAFKA_SRC));
         }
         if (!cluster.env().clusterOutputPath().isEmpty()) {
-            String logDir = Paths.get(cluster.env().workingDirectory(),
+            Path logDir = Paths.get(cluster.env().workingDirectory(),
                 "logs",
-                node.nodeName()).toAbsolutePath().
-                toString();
+                node.nodeName()).toAbsolutePath();
+            Files.createDirectories(logDir);
             run.add("-v");
-            run.add(String.format("%s:%s", logDir, ActionPaths.LOGS_ROOT));
+            run.add(String.format("%s:%s", logDir.toString(), ActionPaths.LOGS_ROOT));
         }
         run.add("--");
         run.add(role.imageId());

@@ -39,7 +39,7 @@ public final class CastleLog implements AutoCloseable, Logger {
     private final boolean enableDebug;
 
     public static CastleLog fromFile(String logBase, String nodeName, boolean enableDebug) throws IOException {
-        File file = new File(new File(logBase), nodeName + ".log");
+        File file = new File(new File(logBase), nodeName + ".clog");
         FileOutputStream outputStream = new FileOutputStream(file, true);
         CastleLog log = null;
         try {
