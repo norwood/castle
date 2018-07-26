@@ -30,6 +30,7 @@ import java.util.Map;
  */
 public class CastleShutdownManager {
     private final Logger log;
+    private Thread shutdownThread = null;
     private HashMap<String, CastleShutdownHook> hooks;
     private CastleReturnCode returnCode = CastleReturnCode.SUCCESS;
 
@@ -38,7 +39,20 @@ public class CastleShutdownManager {
         this.hooks = new HashMap<>();
     }
 
-    public synchronized  void addHookIfMissing(CastleShutdownHook hook) {
+    public synchronized void install() {
+        if (shutdownThread == null) {
+            shutdownThread = new Thread() {
+                @Override
+                public void run() {
+                    changeReturnCode(CastleReturnCode.TOOL_FAILED);
+                    runHooks();
+                }
+            };
+            Runtime.getRuntime().addShutdownHook(shutdownThread);
+        }
+    }
+
+    public synchronized void addHookIfMissing(CastleShutdownHook hook) {
         if (hooks == null) {
             throw new RuntimeException("Shutdown has already occurred; " +
                 "can't add any more shutdown hooks.");
@@ -48,7 +62,17 @@ public class CastleShutdownManager {
         }
     }
 
-    public void shutdown() {
+    public void shutdownNormally() {
+        synchronized (this) {
+            if (shutdownThread != null) {
+                Runtime.getRuntime().removeShutdownHook(shutdownThread);
+                shutdownThread = null;
+            }
+        }
+        runHooks();
+    }
+
+    void runHooks() {
         Map<String, CastleShutdownHook> toRun = null;
         synchronized (this) {
             if (hooks == null) {

@@ -92,13 +92,17 @@ public final class DockerInitAction extends Action {
         }
 
         private synchronized void terminateInstances() throws Throwable {
+            boolean terminatedInstances = false;
             for (CastleNode node : cluster.nodes().values()) {
                 DockerNodeRole dockerRole = node.getRole(DockerNodeRole.class);
                 if ((dockerRole != null) && (!dockerRole.containerName().isEmpty())) {
                     node.uplink().shutdown().get();
+                    terminatedInstances = true;
                 }
             }
-            cluster.clusterLog().info("*** Terminated docker nodes.");
+            if (terminatedInstances) {
+                cluster.clusterLog().info("*** Terminated docker nodes.");
+            }
         }
     }
 }

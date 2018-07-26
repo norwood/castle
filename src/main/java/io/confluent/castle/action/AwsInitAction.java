@@ -102,8 +102,10 @@ public final class AwsInitAction extends Action {
                     futures.add(node.uplink().shutdown());
                 }
             }
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
-            cluster.clusterLog().info("*** Terminated AWS nodes.");
+            if (!futures.isEmpty()) {
+                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
+                cluster.clusterLog().info("*** Terminated AWS nodes.");
+            }
         }
     }
 }

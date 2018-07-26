@@ -164,8 +164,12 @@ public final class CastleTool {
             .metavar(CASTLE_TARGETS)
             .help("The target action(s) to run.");
 
+        final Namespace res = parser.parseArgsOrFail(args);
+        final CastleLog clusterLog = CastleLog.
+            fromStdout("cluster", res.getBoolean(CASTLE_VERBOSE));
+        CastleShutdownManager shutdownManager = new CastleShutdownManager(clusterLog);
+        shutdownManager.install();
         try {
-            Namespace res = parser.parseArgsOrFail(args);
             List<String> targets = res.<String>getList(CASTLE_TARGETS);
             if (targets.isEmpty()) {
                 parser.printHelp();
@@ -173,7 +177,8 @@ public final class CastleTool {
             }
             String workingDirectory = res.getString(CASTLE_WORKING_DIRECTORY);
             String clusterPath = res.getString(CASTLE_CLUSTER_INPUT_PATH);
-            Path defaultClusterConfPath = Paths.get(workingDirectory, CastleEnvironment.CLUSTER_FILE_NAME);
+            Path defaultClusterConfPath = Paths.get(workingDirectory,
+                CastleEnvironment.CLUSTER_FILE_NAME);
             if (defaultClusterConfPath.toFile().exists()) {
                 if (!clusterPath.isEmpty()) {
                     throw new RuntimeException("A cluster file named " +
@@ -190,16 +195,9 @@ public final class CastleTool {
             Files.createDirectories(Paths.get(workingDirectory));
             CastleEnvironment env = new CastleEnvironment(clusterPath, workingDirectory);
             CastleClusterSpec clusterSpec = readClusterSpec(clusterPath);
-            CastleLog clusterLog = CastleLog.fromStdout("cluster", res.getBoolean(CASTLE_VERBOSE));
 
-            CastleReturnCode exitCode;
-            try (CastleCluster cluster = new CastleCluster(env, clusterLog, clusterSpec)) {
-                Runtime.getRuntime().addShutdownHook(new Thread() {
-                    @Override
-                    public void run() {
-                        cluster.shutdownManager().shutdown();
-                    }
-                });
+            try (CastleCluster cluster = new CastleCluster(env, clusterLog,
+                    shutdownManager, clusterSpec)) {
                 if (targets.contains(CastleSsh.COMMAND)) {
                     CastleSsh.run(cluster, targets);
                 } else {
@@ -208,10 +206,9 @@ public final class CastleTool {
                         scheduler.await(cluster.conf().globalTimeout(), TimeUnit.SECONDS);
                     }
                 }
-                cluster.shutdownManager().shutdown();
-                exitCode = cluster.shutdownManager().returnCode();
             }
-            System.exit(exitCode.code());
+            shutdownManager.shutdownNormally();
+            System.exit(shutdownManager.returnCode().code());
         } catch (Throwable exception) {
             System.out.printf("Exiting with exception: %s%n", CastleUtil.fullStackTrace(exception));
             System.exit(1);

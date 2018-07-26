@@ -55,7 +55,7 @@ public final class CastleCluster implements AutoCloseable {
     private final Map<String, Role> originalRoles;
 
     public CastleCluster(CastleEnvironment env, CastleLog clusterLog,
-                       CastleClusterSpec spec) throws Exception {
+            CastleShutdownManager shutdownManager, CastleClusterSpec spec) throws Exception {
         this.conf = spec.conf();
         this.env = env;
         this.clusterLog = clusterLog;
@@ -73,7 +73,7 @@ public final class CastleCluster implements AutoCloseable {
             nodeIndex++;
         }
         this.nodes = Collections.unmodifiableMap(nodes);
-        this.shutdownManager = new CastleShutdownManager(clusterLog);
+        this.shutdownManager = shutdownManager;
         this.originalRoles = spec.roles();
     }
 
