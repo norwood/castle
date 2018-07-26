@@ -100,8 +100,9 @@ public final class DockerCloud implements AutoCloseable {
         run.add("--");
         run.add(role.imageId());
         StringBuilder stringBuilder = new StringBuilder();
-        new NodeShellRunner(node, run, stringBuilder).
-            setRedirectErrorStream(false).
+        new NodeShellRunner(node, run).
+            setCaptureOutput(stringBuilder).
+            setCaptureStderr(false).
             mustRun();
         return stringBuilder.toString().trim();
     }
@@ -116,8 +117,9 @@ public final class DockerCloud implements AutoCloseable {
         docker.addAll(Arrays.asList(new String[]{"docker", "port"}));
         docker.add(containerName);
         StringBuilder stringBuilder = new StringBuilder();
-        new NodeShellRunner(node, docker, stringBuilder).
-            setRedirectErrorStream(false).
+        new NodeShellRunner(node, docker).
+            setCaptureOutput(stringBuilder).
+            setCaptureStderr(false).
             mustRun();
         String text = stringBuilder.toString().trim();
         // The format of the "docker port" output is something like:
@@ -153,8 +155,9 @@ public final class DockerCloud implements AutoCloseable {
             containerName, "bash", "-c", "cat ~/.ssh/id_rsa"
         }));
         StringBuilder stringBuilder = new StringBuilder();
-        if (new NodeShellRunner(node, run, stringBuilder).
-                setRedirectErrorStream(false).
+        if (new NodeShellRunner(node, run).
+            setCaptureOutput(stringBuilder).
+                setCaptureStderr(false).
                 setLogOutputOnSuccess(false).
                 run() != 0) {
             throw new RuntimeException("Failed to get the ssh key file for " + containerName);
@@ -168,7 +171,9 @@ public final class DockerCloud implements AutoCloseable {
         List<String> chmod = Arrays.asList(new String[] {
             "chmod", "0600", sshKeyPath.toString()
         });
-        new NodeShellRunner(node, chmod, stringBuilder).mustRun();
+        new NodeShellRunner(node, chmod).
+            setCaptureOutput(stringBuilder).
+            mustRun();
         return sshKeyPath.toString();
     }
 
@@ -180,9 +185,9 @@ public final class DockerCloud implements AutoCloseable {
         StringBuilder stringBuilder = new StringBuilder();
         new NodeShellRunner(node,
             Arrays.asList(new String[] { "docker", "ps",
-                "-f=network=" + NETWORK, "-q", "--format", "{{.Names}}"}),
-            stringBuilder).
-            setRedirectErrorStream(false).
+                "-f=network=" + NETWORK, "-q", "--format", "{{.Names}}"})).
+            setCaptureOutput(stringBuilder).
+            setCaptureStderr(false).
             mustRun();
         String[] lines = stringBuilder.toString().trim().split(System.lineSeparator());
         Arrays.sort(lines);
@@ -203,7 +208,7 @@ public final class DockerCloud implements AutoCloseable {
         public Void call() throws Exception {
             List<String> inspect = Arrays.asList(new String[] {
                 "docker", "network", "inspect", NETWORK});
-            if (new NodeShellRunner(node, inspect, null).
+            if (new NodeShellRunner(node, inspect).
                     setLogOutputOnSuccess(false).
                     run() == 0) {
                 node.log().printf("** %s is running.%n", NETWORK);
@@ -212,7 +217,7 @@ public final class DockerCloud implements AutoCloseable {
             node.log().printf("** starting %s.%n", NETWORK);
             List<String> create = Arrays.asList(new String[] {
                 "docker", "network", "create", NETWORK});
-            if (new NodeShellRunner(node, create, null).run() == 0) {
+            if (new NodeShellRunner(node, create).run() == 0) {
                 node.log().printf("** successfully created %s.%n", NETWORK);
                 return null;
             }
@@ -222,8 +227,8 @@ public final class DockerCloud implements AutoCloseable {
 
     public void shutdown(CastleNode node, String containerName) throws Exception {
         List<String> kill = Arrays.asList(new String[] {"docker", "kill", containerName});
-        new NodeShellRunner(node, kill, null).run();
+        new NodeShellRunner(node, kill).run();
         List<String> rm = Arrays.asList(new String[] {"docker", "rm", containerName});
-        new NodeShellRunner(node, rm, null).run();
+        new NodeShellRunner(node, rm).run();
     }
 }

@@ -24,6 +24,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -34,20 +35,17 @@ public class NodeShellRunner {
     private static final int OUTPUT_REDIRECTOR_BUFFER_SIZE = 16384;
 
     /**
-     * A thread which reads from a pipe and writes the result into a file.
+     * A thread which reads the stdout from the process we're running.
      */
     private static final class OutputRedirector implements Runnable {
         private final InputStream output;
-        private final StringBuilder stringBuilder;
+        private final List<StringBuilder> stringBuilders;
         private final CastleLog castleLog;
-        private final StringBuilder errorStringBuilder;
 
-        OutputRedirector(InputStream output, StringBuilder stringBuilder,
-                         CastleLog castleLog, StringBuilder errorStringBuilder) {
+        OutputRedirector(InputStream output, List<StringBuilder> stringBuilders, CastleLog castleLog) {
             this.output = output;
-            this.stringBuilder = stringBuilder;
+            this.stringBuilders = stringBuilders;
             this.castleLog = castleLog;
-            this.errorStringBuilder = errorStringBuilder;
         }
 
         @Override
@@ -59,13 +57,15 @@ public class NodeShellRunner {
                     if (ret == -1) {
                         break;
                     }
-                    if (errorStringBuilder == null) {
-                        castleLog.write(arr, 0, ret);
-                    } else {
-                        errorStringBuilder.append(new String(arr, StandardCharsets.UTF_8));
+                    for (StringBuilder stringBuilder : stringBuilders) {
+                        synchronized (stringBuilder) {
+                            stringBuilder.append(new String(arr, StandardCharsets.UTF_8));
+                        }
                     }
-                    if (stringBuilder != null) {
-                        stringBuilder.append(new String(arr, StandardCharsets.UTF_8));
+                    if (castleLog != null) {
+                        synchronized (castleLog) {
+                            castleLog.write(arr, 0, ret);
+                        }
                     }
                 }
             } catch (EOFException e) {
@@ -79,48 +79,67 @@ public class NodeShellRunner {
 
     private final List<String> commandLine;
 
-    private final StringBuilder stringBuilder;
+    private StringBuilder captureOutput = null;
 
-    private boolean redirectErrorStream = true;
+    private boolean captureStderr = true;
 
-    private StringBuilder errorStringBuilder = null;
+    private boolean logOutputOnSuccess = true;
 
-    public NodeShellRunner(CastleNode node, List<String> commandLine, StringBuilder stringBuilder) {
+    public NodeShellRunner(CastleNode node, List<String> commandLine) {
         this.node = node;
         this.commandLine = commandLine;
-        this.stringBuilder = stringBuilder;
     }
 
-    public NodeShellRunner setRedirectErrorStream(boolean redirectErrorStream) {
-        this.redirectErrorStream = redirectErrorStream;
+    public NodeShellRunner setCaptureOutput(StringBuilder captureOutput) {
+        this.captureOutput = captureOutput;
+        return this;
+    }
+
+    public NodeShellRunner setCaptureStderr(boolean captureStderr) {
+        this.captureStderr = captureStderr;
         return this;
     }
 
     public NodeShellRunner setLogOutputOnSuccess(boolean logOutputOnSuccess) {
-        if (logOutputOnSuccess) {
-            this.errorStringBuilder = new StringBuilder();
-        } else {
-            this.errorStringBuilder = null;
-        }
+        this.logOutputOnSuccess = logOutputOnSuccess;
         return this;
     }
 
     public int run() throws Exception {
         ProcessBuilder builder = new ProcessBuilder(commandLine);
-        builder.redirectErrorStream(redirectErrorStream);
+        builder.redirectErrorStream(false);
         Process process = null;
-        Thread outputRedirectorThread = null;
+        Thread stdoutRedirectorThread = null, stderrRedirectorThread = null;
         int retCode = 1;
+        // Set up the string builders which will log the output.
+        List<StringBuilder> stdoutBuilders = new ArrayList<>();
+        List<StringBuilder> stderrBuilders = new ArrayList<>();
+        if (captureOutput != null) {
+            stdoutBuilders.add(captureOutput);
+            if (captureStderr) {
+                stderrBuilders.add(captureOutput);
+            }
+        }
+        StringBuilder errorStringBuilder = null;
+        if (!logOutputOnSuccess) {
+            errorStringBuilder = new StringBuilder();
+            stdoutBuilders.add(errorStringBuilder);
+            stderrBuilders.add(errorStringBuilder);
+        }
         try {
-            node.log().printf("** %s: RUNNING %s%n", node.nodeName(),
-                Command.joinArgs(commandLine));
+            node.log().printf("** %s: RUNNING %s%n", node.nodeName(), Command.joinArgs(commandLine));
             process = builder.start();
-            OutputRedirector outputRedirector =
-                new OutputRedirector(process.getInputStream(), stringBuilder, node.log(), errorStringBuilder);
-            outputRedirectorThread = new Thread(outputRedirector, "CastleSsh_" + node.nodeName());
-            outputRedirectorThread.start();
+            OutputRedirector stdoutRedirector =
+                new OutputRedirector(process.getInputStream(), stdoutBuilders, node.log());
+            OutputRedirector stderrRedirector =
+                new OutputRedirector(process.getErrorStream(), stderrBuilders, node.log());
+            stdoutRedirectorThread = new Thread(stdoutRedirector, "CastleSshStdout_" + node.nodeName());
+            stdoutRedirectorThread.start();
+            stderrRedirectorThread = new Thread(stderrRedirector, "CastleSshStderr_" + node.nodeName());
+            stderrRedirectorThread.start();
             retCode = process.waitFor();
-            outputRedirectorThread.join();
+            stdoutRedirectorThread.join();
+            stderrRedirectorThread.join();
             node.log().printf(String.format("** %s: FINISHED %s with RESULT %d%n",
                 node.nodeName(), Command.joinArgs(commandLine), retCode));
         } finally {
@@ -128,8 +147,11 @@ public class NodeShellRunner {
                 process.destroy();
                 process.waitFor();
             }
-            if (outputRedirectorThread != null) {
-                outputRedirectorThread.join();
+            if (stdoutRedirectorThread != null) {
+                stdoutRedirectorThread.join();
+            }
+            if (stderrRedirectorThread != null) {
+                stderrRedirectorThread.join();
             }
             if ((errorStringBuilder != null) && (retCode != 0)) {
                 node.log().print(errorStringBuilder.toString());

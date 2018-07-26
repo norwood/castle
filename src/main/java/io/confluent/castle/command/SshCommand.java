@@ -193,17 +193,23 @@ public class SshCommand implements Command {
 
     @Override
     public int run() throws Exception {
-        return new NodeShellRunner(node, makeCommandLine(), stringBuilder).run();
+        return new NodeShellRunner(node, makeCommandLine()).
+            setCaptureOutput(stringBuilder).
+            run();
     }
 
     @Override
     public void mustRun() throws Exception {
-        new NodeShellRunner(node, makeCommandLine(), stringBuilder).mustRun();
+        new NodeShellRunner(node, makeCommandLine()).
+            setCaptureOutput(stringBuilder).
+            mustRun();
     }
 
     @Override
     public void exec() throws Exception {
-        new NodeShellRunner(node, makeCommandLine(), stringBuilder).exec();
+        new NodeShellRunner(node, makeCommandLine()).
+            setCaptureOutput(stringBuilder).
+            exec();
     }
 
     private List<String> makeCommandLine() {
