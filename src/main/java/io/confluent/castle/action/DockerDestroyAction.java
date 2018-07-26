@@ -39,8 +39,9 @@ public final class DockerDestroyAction extends Action {
     }
 
     public void call(CastleCluster cluster, CastleNode node) throws Throwable {
-        if (!role.containerName().isEmpty()) {
-            node.uplink().shutdown().get();
+        if (!node.uplink().started()) {
+            node.log().printf("*** Skipping %s, because the node is not running.%n", TYPE);
+            return;
         }
         role.setContainerName("");
         role.setSshIdentityPath("");

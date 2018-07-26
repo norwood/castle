@@ -40,8 +40,8 @@ public final class CollectdStopAction extends Action {
 
     @Override
     public void call(CastleCluster cluster, CastleNode node) throws Throwable {
-        if (node.uplink() == null) {
-            node.log().printf("*** Skipping collectdStop, because the node is not running.%n");
+        if (!node.uplink().canLogin()) {
+            node.log().printf("*** Skipping %s, because the node is not accessible.%n", TYPE);
             return;
         }
         // Flush the collectd cache

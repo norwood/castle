@@ -50,7 +50,7 @@ public class DockerNodeRole implements Role, UplinkRole {
     /**
      * The ssh port to use.
      */
-    private final int sshPort;
+    private int sshPort;
 
     /**
      * The docker container name.
@@ -96,8 +96,12 @@ public class DockerNodeRole implements Role, UplinkRole {
     }
 
     @JsonProperty
-    public int sshPort() {
+    public synchronized int sshPort() {
         return sshPort;
+    }
+
+    public synchronized void setSshPort(int sshPort) {
+        this.sshPort = sshPort;
     }
 
     @JsonProperty

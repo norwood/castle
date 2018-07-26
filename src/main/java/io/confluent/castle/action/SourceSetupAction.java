@@ -37,6 +37,10 @@ public final class SourceSetupAction extends Action {
 
     @Override
     public void call(CastleCluster cluster, CastleNode node) throws Throwable {
+        if (!node.uplink().canLogin()) {
+            node.log().printf("*** Skipping %s, because the node is not accessible.%n", TYPE);
+            return;
+        }
         cluster.conf().validateKafkaPath();
         cluster.conf().validateCastlePath();
         node.uplink().command().args(setupDirectoriesCommand()).mustRun();

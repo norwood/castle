@@ -39,9 +39,11 @@ public final class AwsDestroyAction extends Action {
     }
 
     public void call(CastleCluster cluster, CastleNode node) throws Throwable {
-        if (!role.instanceId().isEmpty()) {
-            node.uplink().shutdown().get();
+        if (!node.uplink().started()) {
+            node.log().printf("*** Skipping %s, because the node is not running.%n", TYPE);
+            return;
         }
+        node.uplink().shutdown().get();
         role.setPublicDns("");
         role.setPublicDns("");
         role.setInstanceId("");

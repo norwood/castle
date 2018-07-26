@@ -42,8 +42,8 @@ public final class SaveLogsAction extends Action {
 
     @Override
     public void call(CastleCluster cluster, CastleNode node) throws Throwable {
-        if (!node.uplink().started()) {
-            node.log().printf("*** Skipping saveLogs, because the node is not running.%n");
+        if (!node.uplink().canLogin()) {
+            node.log().printf("*** Skipping %s, because the node is not accessible.%n", TYPE);
             return;
         }
         Files.createDirectories(Paths.get(cluster.env().workingDirectory(),

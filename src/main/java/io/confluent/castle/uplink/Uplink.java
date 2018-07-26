@@ -46,9 +46,13 @@ public interface Uplink extends AutoCloseable {
     /**
      * Return true if the node was started.
      */
-    default boolean started() {
-        return !internalDns().isEmpty();
-    }
+    boolean started();
+
+    /**
+     * Return true if we can log into the node.
+     */
+    boolean canLogin();
+
 
     /**
      * Get a port accessor for a port.

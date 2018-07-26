@@ -37,8 +37,9 @@ public final class TrogdorStopAction extends Action {
 
     @Override
     public void call(CastleCluster cluster, CastleNode node) throws Throwable {
-        if (node.uplink() == null) {
-            node.log().printf("*** Skipping trogdorStop, because the node is not running.%n");
+        if (!node.uplink().canLogin()) {
+            node.log().printf("*** Skipping %s, because the node is not accessible.%n",
+                daemonType.stopType());
             return;
         }
         CastleUtil.killJavaProcess(cluster, node, daemonType.className(), false);

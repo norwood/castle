@@ -19,12 +19,10 @@ package io.confluent.castle.cloud;
 
 import io.confluent.castle.action.ActionPaths;
 import io.confluent.castle.cluster.CastleCluster;
-import io.confluent.castle.cluster.CastleClusterConf;
 import io.confluent.castle.cluster.CastleNode;
 import io.confluent.castle.command.NodeShellRunner;
 import io.confluent.castle.common.CastleUtil;
 import io.confluent.castle.role.DockerNodeRole;
-import io.confluent.castle.tool.CastleEnvironment;
 
 import java.io.BufferedWriter;
 import java.nio.file.Files;
@@ -39,6 +37,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 public final class DockerCloud implements AutoCloseable {
+    private final static String NETWORK = "ducknet";
+
     private final ExecutorService executorService;
 
     private Future<Void> networkCheckFuture;
@@ -59,6 +59,14 @@ public final class DockerCloud implements AutoCloseable {
         return "DockerCloud{}";
     }
 
+    public synchronized Future<Void> getNetworkCheckFuture(CastleNode node) throws Exception {
+        if (networkCheckFuture != null) {
+            return networkCheckFuture;
+        }
+        networkCheckFuture = executorService.submit(new NetworkCheck(node));
+        return networkCheckFuture;
+    }
+
     public String startup(CastleCluster cluster, CastleNode node,
                           DockerNodeRole role, String containerName) throws Exception {
         getNetworkCheckFuture(node).get();
@@ -66,7 +74,7 @@ public final class DockerCloud implements AutoCloseable {
         run.addAll(Arrays.asList(new String[] {"docker", "run", "-d",
             "--privileged", "--memory=3G", "--memory-swappiness=1",
             "--name", containerName, "-h", containerName,
-            "--network=ducknet"}));
+            "--network=" + NETWORK}));
         if (role.sshPort() > 0) {
             run.add("-p");
             run.add(String.format("%d:22", role.sshPort()));
@@ -98,14 +106,37 @@ public final class DockerCloud implements AutoCloseable {
         return stringBuilder.toString().trim();
     }
 
-    public synchronized Future<Void> getNetworkCheckFuture(CastleNode node) throws Exception {
-        if (networkCheckFuture != null) {
-            return networkCheckFuture;
+    /**
+     * Get the port which is used by the docker container.
+     */
+    public int getDockerPort(CastleCluster cluster, CastleNode node,
+                             String containerName) throws Exception {
+        getNetworkCheckFuture(node).get();
+        List<String> docker = new ArrayList<>();
+        docker.addAll(Arrays.asList(new String[]{"docker", "port"}));
+        docker.add(containerName);
+        StringBuilder stringBuilder = new StringBuilder();
+        new NodeShellRunner(node, docker, stringBuilder).
+            setRedirectErrorStream(false).
+            mustRun();
+        String text = stringBuilder.toString().trim();
+        // The format of the "docker port" output is something like:
+        // 22/tcp -> 0.0.0.0:32768
+        // We assume that there is only one port.
+        int index = text.lastIndexOf(":");
+        if (index < 0) {
+            throw new RuntimeException("Expected to find a colon in the " +
+                "'docker port' output for " + node.nodeName());
         }
-        networkCheckFuture = executorService.submit(new NetworkCheck(node));
-        return networkCheckFuture;
+        String portString = text.substring(index);
+        int port = Integer.parseInt(portString);
+        return port;
     }
 
+    /**
+     * Save the ssh private key from the docker container.
+     * This will let us ssh into the container.
+     */
     public String saveSshKeyFile(CastleCluster cluster, CastleNode node,
                                  String containerName, String dockerUser) throws Exception {
         getNetworkCheckFuture(node).get();
@@ -116,6 +147,8 @@ public final class DockerCloud implements AutoCloseable {
             run.add("--user");
             run.add(dockerUser);
         }
+        // Run this command through the shell, so that "~" will be expanded to
+        // the current home directory.
         run.addAll(Arrays.asList(new String[] {
             containerName, "bash", "-c", "cat ~/.ssh/id_rsa"
         }));
@@ -130,6 +163,7 @@ public final class DockerCloud implements AutoCloseable {
         try (BufferedWriter writer = Files.newBufferedWriter(sshKeyPath)) {
             writer.write(stringBuilder.toString());
         }
+        // We have to set the permissions to 0600, or else ssh refuses to use it.
         List<String> chmod = Arrays.asList(new String[] {
             "chmod", "0600", sshKeyPath.toString()
         });
@@ -137,12 +171,15 @@ public final class DockerCloud implements AutoCloseable {
         return sshKeyPath.toString();
     }
 
+    /**
+     * List the containers which are running with our docker network.
+     */
     public String[] listContainers(CastleNode node) throws Exception {
         getNetworkCheckFuture(node).get();
         StringBuilder stringBuilder = new StringBuilder();
         new NodeShellRunner(node,
             Arrays.asList(new String[] { "docker", "ps",
-                "-f=network=ducknet", "-q", "--format", "'{{.Name}}'"}),
+                "-f=network=" + NETWORK, "-q", "--format", "'{{.Name}}'"}),
             stringBuilder).
             setRedirectErrorStream(false).
             mustRun();
@@ -164,18 +201,20 @@ public final class DockerCloud implements AutoCloseable {
 
         @Override
         public Void call() throws Exception {
-            List<String> inspect = Arrays.asList(new String[] {"docker", "network", "inspect", "ducknet"});
+            List<String> inspect = Arrays.asList(new String[] {
+                "docker", "network", "inspect", NETWORK});
             if (new NodeShellRunner(node, inspect, null).run() == 0) {
-                node.log().printf("** ducknet is running.%n");
+                node.log().printf("** %s is running.%n", NETWORK);
                 return null;
             }
-            node.log().printf("** starting ducknet.%n");
-            List<String> create = Arrays.asList(new String[] {"docker", "network", "create", "ducknet"});
+            node.log().printf("** starting %s.%n", NETWORK);
+            List<String> create = Arrays.asList(new String[] {
+                "docker", "network", "create", NETWORK});
             if (new NodeShellRunner(node, create, null).run() == 0) {
-                node.log().printf("** successfully created ducknet.%n");
+                node.log().printf("** successfully created %s.%n", NETWORK);
                 return null;
             }
-            throw new RuntimeException("Failed to create ducknet.");
+            throw new RuntimeException("Failed to create " + NETWORK + ".");
         }
     }
 

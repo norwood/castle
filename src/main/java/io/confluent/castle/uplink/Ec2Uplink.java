@@ -75,6 +75,16 @@ public class Ec2Uplink implements Uplink {
     }
 
     @Override
+    public boolean started() {
+        return !role.privateDns().isEmpty();
+    }
+
+    @Override
+    public boolean canLogin() {
+        return !role.privateDns().isEmpty();
+    }
+
+    @Override
     public PortAccessor openPort(int port) throws Exception {
         return sshCommand().new Tunnel(node, role.sshPort());
     }

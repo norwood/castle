@@ -47,8 +47,8 @@ public class TaskStopAction extends Action  {
 
     @Override
     public void call(final CastleCluster cluster, final CastleNode node) throws Throwable {
-        if (node.uplink() == null) {
-            node.log().printf("*** Skipping taskStop, because the node is not running.%n");
+        if (!node.uplink().started()) {
+            node.log().printf("*** Skipping %s, because the node is not running.%n", TYPE);
             return;
         }
         if (CastleUtil.getJavaProcessStatus(cluster, node,

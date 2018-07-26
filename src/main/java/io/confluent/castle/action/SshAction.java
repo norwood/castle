@@ -45,6 +45,10 @@ public final class SshAction extends Action {
 
     @Override
     public void call(final CastleCluster cluster, final CastleNode node) throws Throwable {
+        if (!node.uplink().canLogin()) {
+            node.log().printf("*** Skipping %s, because the node is not accessible.%n", TYPE);
+            return;
+        }
         int status = node.uplink().command().argList(command).run();
         if (status != 0) {
             cluster.shutdownManager().changeReturnCode(CLUSTER_FAILED);

@@ -66,6 +66,16 @@ public class DockerUplink implements Uplink {
     }
 
     @Override
+    public boolean started() {
+        return !role.containerName().isEmpty();
+    }
+
+    @Override
+    public boolean canLogin() {
+        return role.sshPort() > 0;
+    }
+
+    @Override
     public PortAccessor openPort(int port) throws Exception {
         SshCommand command = new SshCommand(node, "localhost",
             role.dockerUser(), role.sshPort(), role.sshIdentityPath());
@@ -78,12 +88,21 @@ public class DockerUplink implements Uplink {
             throw new RuntimeException("Can't start node " + node.nodeName() +
                 " because there is already a container name set.");
         }
+        if (role.sshPort() > 0) {
+            throw new RuntimeException("Can't start node " + node.nodeName() +
+                " because there is already an ssh port set.");
+        }
+        if (!role.sshIdentityPath().isEmpty()) {
+            throw new RuntimeException("Can't start node " + node.nodeName() +
+                " because there is already an ssh identity path set.");
+        }
         String containerName = String.format("ducker%02d", node.nodeIndex());
         node.log().printf("*** Creating new docker container %s with image ID %s%n",
             containerName, role.imageId());
         String containerId = cloud.startup(cluster, node, role, containerName);
         node.log().printf("*** Created a new docker container %s%n", containerId);
         role.setContainerName(containerName);
+        role.setSshPort(cloud.getDockerPort(cluster, node, containerName));
         role.setSshIdentityPath(cloud.saveSshKeyFile(cluster, node, containerName, role.dockerUser()));
     }
 
