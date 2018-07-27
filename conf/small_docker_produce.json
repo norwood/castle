@@ -45,10 +45,10 @@
     "broker": {
       "type": "broker",
       "initialDelayMs": 2000,
-      "jvmOptions" : "-Xmx9g -Xms9g",
+      "jvmOptions" : "-Xmx1g -Xms1g",
       "conf": {
-        "num.io.threads": "16",
-        "num.network.threads": "6",
+        "num.io.threads": "8",
+        "num.network.threads": "3",
         "zookeeper.session.timeout.ms": "12000"
       }
     },
