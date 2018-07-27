@@ -44,7 +44,7 @@
   "roles": {
     "broker": {
       "type": "broker",
-      "initialDelayMs": 20000,
+      "initialDelayMs": 2000,
       "jvmOptions" : "-Xmx9g -Xms9g",
       "conf": {
         "num.io.threads": "16",
@@ -94,7 +94,7 @@
     },
     "task": {
       "type": "task",
-      "initialDelayMs": 5000,
+      "initialDelayMs": 10000,
       "taskSpecs": {
         "bench": {
           "class": "org.apache.kafka.trogdor.workload.ProduceBenchSpec",
