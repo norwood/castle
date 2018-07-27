@@ -34,7 +34,6 @@ import io.confluent.castle.cluster.CastleCluster;
 import io.confluent.castle.cluster.CastleNode;
 import io.confluent.castle.common.CastleLog;
 import io.confluent.castle.common.CastleUtil;
-import org.apache.kafka.common.utils.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -185,7 +184,7 @@ public final class Ec2Cloud implements AutoCloseable, Runnable {
             // Nothing to do.
             return Long.MAX_VALUE;
         } else {
-            long now = Time.SYSTEM.milliseconds();
+            long now = System.currentTimeMillis();
             if (nextCallTimeMs > now) {
                 return nextCallTimeMs - now;
             } else {
@@ -327,7 +326,7 @@ public final class Ec2Cloud implements AutoCloseable, Runnable {
     }
 
     private synchronized void updateNextCallTime(long minDelay) {
-        nextCallTimeMs = Math.max(nextCallTimeMs, Time.SYSTEM.milliseconds() + minDelay);
+        nextCallTimeMs = Math.max(nextCallTimeMs, System.currentTimeMillis() + minDelay);
     }
 
     @Override

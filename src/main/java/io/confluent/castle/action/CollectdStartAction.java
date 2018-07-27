@@ -17,7 +17,6 @@
 
 package io.confluent.castle.action;
 
-import org.apache.kafka.common.utils.Utils;
 import io.confluent.castle.cluster.CastleCluster;
 import io.confluent.castle.cluster.CastleNode;
 import io.confluent.castle.common.CastleUtil;
@@ -114,8 +113,10 @@ public final class CollectdStartAction extends Action {
             success = true;
             return file;
         } finally {
-            Utils.closeQuietly(osw, "temporary collectd file OutputStreamWriter");
-            Utils.closeQuietly(fos, "temporary collectd file FileOutputStream");
+            CastleUtil.closeQuietly(node.log(), osw,
+                    "temporary collectd file OutputStreamWriter");
+            CastleUtil.closeQuietly(node.log(), fos,
+                    "temporary collectd file FileOutputStream");
             if (!success) {
                 CastleUtil.deleteFileOrLog(node.log(), file);
             }
