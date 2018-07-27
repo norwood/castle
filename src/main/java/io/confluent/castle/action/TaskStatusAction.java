@@ -68,9 +68,9 @@ public class TaskStatusAction extends Action  {
                 }
                 if (stateNode.textValue().equals(DONE)) {
                     JsonNode errorNode = state.get("error");
-                    String error = (errorNode == null) ? "" : errorNode.textValue();
-                    if (error.isEmpty()) {
-                        cluster.clusterLog().printf("%s: Task %s failed with error %s%n",
+                    String error = (errorNode == null) ? "" : errorNode.textValue().trim();
+                    if (!error.isEmpty()) {
+                        cluster.clusterLog().printf("%s: Task %s failed with error '%s'%n",
                             node.nodeName(), taskId, error);
                         cluster.shutdownManager().changeReturnCode(CastleReturnCode.CLUSTER_FAILED);
                     } else {
