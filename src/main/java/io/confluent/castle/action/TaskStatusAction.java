@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.NullNode;
 import io.confluent.castle.cluster.CastleCluster;
 import io.confluent.castle.cluster.CastleNode;
+import io.confluent.castle.command.CommandResultException;
 import io.confluent.castle.role.TaskRole;
 import io.confluent.castle.tool.CastleReturnCode;
 
@@ -45,6 +46,12 @@ public class TaskStatusAction extends Action  {
 
     @Override
     public void call(final CastleCluster cluster, CastleNode node) throws Throwable {
+        if (!node.uplink().canLogin()) {
+            cluster.clusterLog().printf("%s: can't check task status because we cannot log in.%n",
+                node.nodeName());
+            cluster.shutdownManager().changeReturnCode(CastleReturnCode.CLUSTER_FAILED);
+            return;
+        }
         try {
             TrogdorClient client = new TrogdorClient(node);
             Map<String, JsonNode> tasks = client.getTasks();
@@ -70,18 +77,26 @@ public class TaskStatusAction extends Action  {
                     JsonNode errorNode = state.get("error");
                     String error = (errorNode == null) ? "" : errorNode.textValue().trim();
                     if (!error.isEmpty()) {
-                        cluster.clusterLog().printf("%s: Task %s failed with error '%s'%n",
+                        cluster.clusterLog().printf("** %s: Task %s failed with error '%s'%n",
                             node.nodeName(), taskId, error);
                         cluster.shutdownManager().changeReturnCode(CastleReturnCode.CLUSTER_FAILED);
                     } else {
-                        cluster.clusterLog().printf("%s: Task %s succeeded with status %s%n",
+                        cluster.clusterLog().printf("** %s: Task %s succeeded with status %s%n",
                             node.nodeName(), taskId, statusNode);
                     }
                 } else {
-                    cluster.clusterLog().printf("Task %s is in progress with status %s%n",
-                        taskId, statusNode);
+                    cluster.clusterLog().printf("** %s: Task %s is in progress with status %s%n",
+                        node.nodeName(), taskId, statusNode);
                     cluster.shutdownManager().changeReturnCode(CastleReturnCode.IN_PROGRESS);
                 }
+            }
+        } catch (CommandResultException e) {
+            if (e.returnCode() == 7) {
+                cluster.clusterLog().printf("** %s: Failed to connect to the Trogdor coordinator.%n",
+                    node.nodeName());
+                cluster.shutdownManager().changeReturnCode(CastleReturnCode.CLUSTER_FAILED);
+            } else {
+                throw e;
             }
         } catch (Throwable e) {
             cluster.clusterLog().info("Error getting trogdor tasks status", e);
