@@ -43,6 +43,7 @@ public final class DockerDestroyAction extends Action {
             node.log().printf("*** Skipping %s, because the node is not running.%n", TYPE);
             return;
         }
+        node.uplink().shutdown();
         role.setContainerName("");
         role.setSshIdentityPath("");
         cluster.shutdownManager().addHookIfMissing(new CastleWriteClusterFileHook(cluster));
