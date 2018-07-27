@@ -23,8 +23,10 @@ import io.confluent.castle.common.CastleLog;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -32,28 +34,32 @@ import java.util.List;
  * possibly a stringbuilder.
  */
 public class NodeShellRunner {
-    private static final int OUTPUT_REDIRECTOR_BUFFER_SIZE = 16384;
+    private static final int OUTPUT_REDIRECTOR_BUFFER_SIZE = 32768;
 
     /**
      * A thread which reads the stdout from the process we're running.
      */
-    private static final class OutputRedirector implements Runnable {
-        private final InputStream output;
+    private static final class OutputHandler implements Runnable {
+        private final InputStream stream;
         private final List<StringBuilder> stringBuilders;
         private final CastleLog castleLog;
+        private final boolean newlineTerminate;
 
-        OutputRedirector(InputStream output, List<StringBuilder> stringBuilders, CastleLog castleLog) {
-            this.output = output;
+        OutputHandler(InputStream stream, List<StringBuilder> stringBuilders,
+                      CastleLog castleLog, boolean newlineTerminate) {
+            this.stream = stream;
             this.stringBuilders = stringBuilders;
             this.castleLog = castleLog;
+            this.newlineTerminate = newlineTerminate;
         }
 
         @Override
         public void run() {
             byte[] arr = new byte[OUTPUT_REDIRECTOR_BUFFER_SIZE];
+            boolean endedWithNewline = true;
             try {
                 while (true) {
-                    int ret = output.read(arr);
+                    int ret = stream.read(arr);
                     if (ret == -1) {
                         break;
                     }
@@ -66,11 +72,45 @@ public class NodeShellRunner {
                         synchronized (castleLog) {
                             castleLog.write(arr, 0, ret);
                         }
+                        if (ret >= 0) {
+                            endedWithNewline = (arr[ret] == '\n');
+                        }
+                    }
+                }
+                if (newlineTerminate && (!endedWithNewline)) {
+                    synchronized (castleLog) {
+                        castleLog.write(new byte[] {'\n'});
                     }
                 }
             } catch (EOFException e) {
             } catch (IOException e) {
-                castleLog.printf("IOException: %s%n", e.getMessage());
+                castleLog.printf("OutputRedirectory IOException: %s%n", e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * A thread which writes to a process' stdin.
+     */
+    private static final class StdinHandler implements Runnable {
+        private final byte[] data;
+        private final OutputStream stream;
+        private final CastleLog castleLog;
+
+        StdinHandler(OutputStream stream, byte[] data, CastleLog castleLog) {
+            this.data = data;
+            this.stream = stream;
+            this.castleLog = castleLog;
+        }
+
+        @Override
+        public void run() {
+            try {
+                stream.write(data);
+                stream.close();
+            } catch (EOFException e) {
+            } catch (IOException e) {
+                castleLog.printf("StdinHandler IOException: %s%n", e.getMessage());
             }
         }
     }
@@ -84,6 +124,8 @@ public class NodeShellRunner {
     private boolean captureStderr = true;
 
     private boolean logOutputOnSuccess = true;
+
+    private byte[] stdin = null;
 
     public NodeShellRunner(CastleNode node, List<String> commandLine) {
         this.node = node;
@@ -105,11 +147,18 @@ public class NodeShellRunner {
         return this;
     }
 
+    public NodeShellRunner setStdin(byte[] stdin) {
+        if (stdin == null) {
+            this.stdin = null;
+        } else {
+            this.stdin = Arrays.copyOf(stdin, stdin.length);
+        }
+        return this;
+    }
+
     public int run() throws Exception {
         ProcessBuilder builder = new ProcessBuilder(commandLine);
         builder.redirectErrorStream(false);
-        Process process = null;
-        Thread stdoutRedirectorThread = null, stderrRedirectorThread = null;
         int retCode = 1;
         // Set up the string builders which will log the output.
         List<StringBuilder> stdoutBuilders = new ArrayList<>();
@@ -120,40 +169,54 @@ public class NodeShellRunner {
                 stderrBuilders.add(captureOutput);
             }
         }
-        OutputRedirector stdoutRedirector, stderrRedirector;
+        OutputHandler stdoutHandler = null, stderrHandler = null;
+        StdinHandler stdinHandler = null;
         StringBuilder errorStringBuilder = null;
+        Thread stdoutThread = null, stderrThread = null, stdinThread = null;
+        Process process = null;
         try {
             node.log().printf("** %s: RUNNING %s%n", node.nodeName(), Command.joinArgs(commandLine));
             process = builder.start();
+            if (stdin != null) {
+                stdinHandler = new StdinHandler(process.getOutputStream(), stdin, node.log());
+                stdinThread = new Thread(stdinHandler, "CastleSshStdin_" + node.nodeName());
+                stdinThread.start();
+            }
             if (logOutputOnSuccess) {
-                stdoutRedirector = new OutputRedirector(process.getInputStream(), stdoutBuilders, node.log());
-                stderrRedirector = new OutputRedirector(process.getErrorStream(), stderrBuilders, node.log());
+                stdoutHandler = new OutputHandler(process.getInputStream(), stdoutBuilders, node.log(), true);
+                stderrHandler = new OutputHandler(process.getErrorStream(), stderrBuilders, node.log(), false);
             } else {
                 errorStringBuilder = new StringBuilder();
                 stdoutBuilders.add(errorStringBuilder);
                 stderrBuilders.add(errorStringBuilder);
-                stdoutRedirector = new OutputRedirector(process.getInputStream(), stdoutBuilders, null);
-                stderrRedirector = new OutputRedirector(process.getErrorStream(), stderrBuilders, null);
+                stdoutHandler = new OutputHandler(process.getInputStream(), stdoutBuilders, null, false);
+                stderrHandler = new OutputHandler(process.getErrorStream(), stderrBuilders, null, false);
             }
-            stdoutRedirectorThread = new Thread(stdoutRedirector, "CastleSshStdout_" + node.nodeName());
-            stdoutRedirectorThread.start();
-            stderrRedirectorThread = new Thread(stderrRedirector, "CastleSshStderr_" + node.nodeName());
-            stderrRedirectorThread.start();
+            stdoutThread = new Thread(stdoutHandler, "CastleSshStdout_" + node.nodeName());
+            stdoutThread.start();
+            stderrThread = new Thread(stderrHandler, "CastleSshStderr_" + node.nodeName());
+            stderrThread.start();
             retCode = process.waitFor();
-            stdoutRedirectorThread.join();
-            stderrRedirectorThread.join();
-            node.log().printf(String.format("** %s: FINISHED %s with RESULT %d%n",
-                node.nodeName(), Command.joinArgs(commandLine), retCode));
+            stdoutThread.join();
+            stderrThread.join();
+            if (stdinThread != null) {
+                stdinThread.join();
+            }
+            node.log().printf("** %s: FINISHED %s with RESULT %d%n",
+                node.nodeName(), Command.joinArgs(commandLine), retCode);
         } finally {
             if (process != null) {
                 process.destroy();
                 process.waitFor();
             }
-            if (stdoutRedirectorThread != null) {
-                stdoutRedirectorThread.join();
+            if (stdoutThread != null) {
+                stdoutThread.join();
             }
-            if (stderrRedirectorThread != null) {
-                stderrRedirectorThread.join();
+            if (stderrThread != null) {
+                stderrThread.join();
+            }
+            if (stdinThread != null) {
+                stdinThread.join();
             }
             if ((errorStringBuilder != null) && (retCode != 0)) {
                 node.log().print(errorStringBuilder.toString());

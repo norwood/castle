@@ -77,6 +77,18 @@ public interface Command {
     Command captureOutput(StringBuilder stringBuilder);
 
     /**
+     * Set whether we should capture the command output.
+     */
+    Command setCaptureStderr(boolean captureStderr);
+
+    /**
+     * Sets the stdin to use for the command.
+     *
+     * @param stdin                 The bytes to send to stdin.
+     */
+    Command setStdin(byte[] stdin);
+
+    /**
      * Runs the command.
      *
      * @return The exit status of the command.

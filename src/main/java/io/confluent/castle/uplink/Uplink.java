@@ -18,7 +18,6 @@
 package io.confluent.castle.uplink;
 
 import io.confluent.castle.command.Command;
-import io.confluent.castle.command.PortAccessor;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -52,12 +51,6 @@ public interface Uplink extends AutoCloseable {
      * Return true if we can log into the node.
      */
     boolean canLogin();
-
-
-    /**
-     * Get a port accessor for a port.
-     */
-    PortAccessor openPort(int port) throws Exception;
 
     /**
      * Start up the node.  Modify the role.

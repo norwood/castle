@@ -22,7 +22,6 @@ import io.confluent.castle.cloud.Ec2InstanceInfo;
 import io.confluent.castle.cluster.CastleCluster;
 import io.confluent.castle.cluster.CastleNode;
 import io.confluent.castle.command.Command;
-import io.confluent.castle.command.PortAccessor;
 import io.confluent.castle.command.SshCommand;
 import io.confluent.castle.common.CastleLog;
 import io.confluent.castle.role.AwsNodeRole;
@@ -82,11 +81,6 @@ public class Ec2Uplink implements Uplink {
     @Override
     public boolean canLogin() {
         return !role.privateDns().isEmpty();
-    }
-
-    @Override
-    public PortAccessor openPort(int port) throws Exception {
-        return sshCommand().new Tunnel(node, role.sshPort());
     }
 
     @Override

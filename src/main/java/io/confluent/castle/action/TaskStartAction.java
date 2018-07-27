@@ -17,23 +17,11 @@
 
 package io.confluent.castle.action;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
 import io.confluent.castle.cluster.CastleCluster;
 import io.confluent.castle.cluster.CastleNode;
 import io.confluent.castle.common.JsonTransformer;
-import io.confluent.castle.common.CastleUtil;
-import io.confluent.castle.common.CastleUtil.CoordinatorFunction;
 import io.confluent.castle.role.TaskRole;
-import io.confluent.castle.tool.CastleTool;
-import org.apache.kafka.trogdor.coordinator.CoordinatorClient;
-import org.apache.kafka.trogdor.rest.CreateTaskRequest;
-import org.apache.kafka.trogdor.rest.Empty;
-import org.apache.kafka.trogdor.rest.JsonRestServer;
-import org.apache.kafka.trogdor.task.TaskSpec;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -42,7 +30,7 @@ import java.util.TreeMap;
 public class TaskStartAction extends Action  {
     public final static String TYPE = "taskStart";
 
-    private final Map<String, JsonNode> taskSpecs;
+    private final TaskRole role;
 
     public TaskStartAction(String scope, TaskRole role) {
         super(new ActionId(TYPE, scope),
@@ -52,28 +40,21 @@ public class TaskStartAction extends Action  {
             },
             new String[] {},
             role.initialDelayMs());
-        this.taskSpecs = role.taskSpecs();
+        this.role = role;
     }
 
     @Override
     public void call(final CastleCluster cluster, CastleNode node) throws Throwable {
-        CastleUtil.invokeCoordinator(cluster, node, new CoordinatorFunction<Void>() {
-            @Override
-            public Void apply(CoordinatorClient coordinatorClient, String endpoint) throws Exception {
-                for (Map.Entry<String, JsonNode> entry :
-                        createTransformedTaskSpecs(cluster).entrySet()) {
-                    // We manipulate the TaskSpec as a raw JsonNode.
-                    // If we tried to interpret it here, we'd have to stay in sync with changes to the
-                    // TaskSpec fields in Kafka.
-                    ObjectNode node = new ObjectNode(JsonNodeFactory.instance);
-                    node.put("id", entry.getKey());
-                    node.set("spec", entry.getValue());
-                    JsonRestServer.httpRequest(cluster.clusterLog(), endpoint + "/coordinator/task/create", "POST",
-                        node, new TypeReference<Empty>() { }, 3);
-                }
-                return null;
+        TrogdorClient client = new TrogdorClient(node);
+        for (Map.Entry<String, JsonNode> entry : createTransformedTaskSpecs(cluster).entrySet()) {
+            client.createTask(entry.getKey(), entry.getValue());
+        }
+        Map<String, JsonNode> tasks = client.getTasks();
+        for (String taskId : role.taskSpecs().keySet()) {
+            if (!tasks.containsKey(taskId)) {
+                throw new RuntimeException("Unable to find newly created task " + taskId);
             }
-        });
+        }
     }
 
     /**
@@ -86,7 +67,7 @@ public class TaskStartAction extends Action  {
             throws Exception {
         Map<String, String> transforms = getTransforms(cluster);
         Map<String, JsonNode> transformedSpecs = new TreeMap<>();
-        for (Map.Entry<String, JsonNode> entry : taskSpecs.entrySet()) {
+        for (Map.Entry<String, JsonNode> entry : role.taskSpecs().entrySet()) {
             JsonNode outputNode = JsonTransformer.
                 transform(entry.getValue(), new JsonTransformer.MapSubstituter(transforms));
             transformedSpecs.put(entry.getKey(), outputNode);

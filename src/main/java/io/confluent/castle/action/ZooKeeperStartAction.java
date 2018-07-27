@@ -39,7 +39,11 @@ public class ZooKeeperStartAction extends Action  {
 
     public ZooKeeperStartAction(String scope, ZooKeeperRole role) {
         super(new ActionId(TYPE, scope),
-            new TargetId[] {},
+            new TargetId[]{
+                // We need all nodes to be brought up before we can run this, so that
+                // we have access to all node internal hostnames.
+                new TargetId(InitAction.TYPE)
+            },
             new String[] {},
             role.initialDelayMs());
     }
@@ -97,6 +101,11 @@ public class ZooKeeperStartAction extends Action  {
             osw.write(String.format("dataDir=%s%n", ZK_OPLOGS));
             osw.write(String.format("clientPort=2181%n"));
             osw.write(String.format("maxClientCnxns=0%n"));
+            int serverIdx = 1;
+            for (String nodeName : cluster.nodesWithRole(ZooKeeperRole.class).values()) {
+                osw.write(String.format("server.%d=%s:2888:3888%n", serverIdx++,
+                    cluster.nodes().get(nodeName).uplink().internalDns()));
+            }
             success = true;
             return file;
         } finally {

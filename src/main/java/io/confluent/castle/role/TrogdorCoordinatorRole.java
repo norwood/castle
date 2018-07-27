@@ -31,6 +31,8 @@ import java.util.Collection;
 public class TrogdorCoordinatorRole implements Role {
     private final int initialDelayMs;
 
+    public final static int PORT = 8889;
+
     @JsonCreator
     public TrogdorCoordinatorRole(@JsonProperty("initialDelayMs") int initialDelayMs) {
         this.initialDelayMs = initialDelayMs;

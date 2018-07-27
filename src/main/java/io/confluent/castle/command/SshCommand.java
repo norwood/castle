@@ -20,111 +20,14 @@ package io.confluent.castle.command;
 import io.confluent.castle.cluster.CastleNode;
 import io.confluent.castle.common.CastleUtil;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * A command implementation that uses ssh to contact the node.
  */
 public class SshCommand implements Command {
-    private static final String SSH_TUNNEL_ACTIVE = "The ssh tunnel is now active.";
-
-    /**
-     * An ssh tunnel that forwards local ports to remote ones.
-     */
-    public class Tunnel implements PortAccessor {
-        private final static int MAX_TRIES = 10;
-        private final Process process;
-        private final int localPort;
-
-        public Tunnel(CastleNode node, int remotePort) throws Exception {
-            Process process = null;
-            int localPort = -1;
-            int tries = 0;
-            do {
-                localPort = ThreadLocalRandom.current().nextInt(32768, 61000);
-                try {
-                    process = tryCreateProcess(node, remotePort, localPort);
-                } catch (Throwable e) {
-                    node.log().info("Unable to create ssh tunnel on local port {}",
-                        localPort, e);
-                    if (++tries >= MAX_TRIES) {
-                        throw e;
-                    }
-                }
-            } while (process == null);
-            this.process = process;
-            this.localPort = localPort;
-        }
-
-        private Process tryCreateProcess(CastleNode node, int remotePort, int localPort)
-                throws Exception {
-            Process curProcess = null;
-            boolean success = false;
-            List<String> commandLine = createSshCommandPreamble();
-            commandLine.add("-L");
-            commandLine.add(String.format("%d:localhost:%d", localPort, remotePort));
-            commandLine.add(dns);
-            commandLine.add("-o");
-            commandLine.add("ExitOnForwardFailure=yes");
-            commandLine.add("-n");
-            commandLine.add("--");
-            commandLine.add("echo");
-            commandLine.add(SSH_TUNNEL_ACTIVE);
-            commandLine.add("&&");
-            commandLine.add("sleep");
-            commandLine.add("1000000");
-            node.log().printf("** %s: CREATING SSH TUNNEL: %s%n",
-                node.nodeName(), Command.joinArgs(commandLine));
-            ProcessBuilder builder = new ProcessBuilder(commandLine);
-            InputStreamReader isr = null;
-            BufferedReader br = null;
-            curProcess = builder.start();
-            try {
-                isr = new InputStreamReader(curProcess.getInputStream(), StandardCharsets.UTF_8);
-                br = new BufferedReader(isr);
-                String line = br.readLine();
-                if ((line == null) || !line.equals(SSH_TUNNEL_ACTIVE)) {
-                    throw new RuntimeException("Read unexpected line from ssh tunnel process: " + line);
-                }
-                success = true;
-            } finally {
-                CastleUtil.closeQuietly(node.log(), isr,
-                    "tryCreateProcess#InputStreamReader");
-                CastleUtil.closeQuietly(node.log(), br,
-                    "tryCreateProcess#BufferedReader");
-                if (!success) {
-                    curProcess.destroy();
-                    curProcess.waitFor();
-                }
-            }
-            node.log().printf("** %s: TUNNEL ESTABLISHED: %s%n",
-                node.nodeName(), Command.joinArgs(commandLine));
-            return curProcess;
-        }
-
-        /**
-         * Get the local port which the ssh tunnel is connected to.
-         *
-         * @return  The local port.
-         */
-        @Override
-        public int port() {
-            return localPort;
-        }
-
-        @Override
-        public void close() throws InterruptedException {
-            process.destroy();
-            process.waitFor();
-        }
-    }
-
     private final CastleNode node;
 
     private final String dns;
@@ -143,7 +46,11 @@ public class SshCommand implements Command {
 
     private String remote = null;
 
+    private boolean captureStderr = false;
+
     private StringBuilder stringBuilder = null;
+
+    private byte[] stdin = null;
 
     public SshCommand(CastleNode node, String dns, String sshUser, int sshPort, String sshIdentityFile) {
         this.node = node;
@@ -192,9 +99,27 @@ public class SshCommand implements Command {
     }
 
     @Override
+    public Command setCaptureStderr(boolean captureStderr) {
+        this.captureStderr = captureStderr;
+        return this;
+    }
+
+    @Override
+    public Command setStdin(byte[] stdin) {
+        if (stdin == null) {
+            this.stdin = null;
+        } else {
+            this.stdin = Arrays.copyOf(stdin, stdin.length);
+        }
+        return this;
+    }
+
+    @Override
     public int run() throws Exception {
         return new NodeShellRunner(node, makeCommandLine()).
             setCaptureOutput(stringBuilder).
+            setCaptureStderr(captureStderr).
+            setStdin(stdin).
             run();
     }
 
@@ -202,6 +127,8 @@ public class SshCommand implements Command {
     public void mustRun() throws Exception {
         new NodeShellRunner(node, makeCommandLine()).
             setCaptureOutput(stringBuilder).
+            setCaptureStderr(captureStderr).
+            setStdin(stdin).
             mustRun();
     }
 
@@ -209,6 +136,8 @@ public class SshCommand implements Command {
     public void exec() throws Exception {
         new NodeShellRunner(node, makeCommandLine()).
             setCaptureOutput(stringBuilder).
+            setCaptureStderr(captureStderr).
+            setStdin(stdin).
             exec();
     }
 

@@ -21,7 +21,6 @@ import io.confluent.castle.cloud.DockerCloud;
 import io.confluent.castle.cluster.CastleCluster;
 import io.confluent.castle.cluster.CastleNode;
 import io.confluent.castle.command.Command;
-import io.confluent.castle.command.PortAccessor;
 import io.confluent.castle.command.SshCommand;
 import io.confluent.castle.common.CastleLog;
 import io.confluent.castle.common.CastleUtil;
@@ -72,13 +71,6 @@ public class DockerUplink implements Uplink {
     @Override
     public boolean canLogin() {
         return role.sshPort() > 0;
-    }
-
-    @Override
-    public PortAccessor openPort(int port) throws Exception {
-        SshCommand command = new SshCommand(node, "localhost",
-            role.dockerUser(), role.sshPort(), role.sshIdentityPath());
-        return command.new Tunnel(node, role.sshPort());
     }
 
     @Override

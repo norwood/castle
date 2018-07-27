@@ -17,22 +17,19 @@
 
 package io.confluent.castle.action;
 
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.NullNode;
 import io.confluent.castle.cluster.CastleCluster;
 import io.confluent.castle.cluster.CastleNode;
-import io.confluent.castle.common.CastleUtil;
-import io.confluent.castle.common.CastleUtil.CoordinatorFunction;
 import io.confluent.castle.role.TaskRole;
 import io.confluent.castle.tool.CastleReturnCode;
-import org.apache.kafka.trogdor.coordinator.CoordinatorClient;
-import org.apache.kafka.trogdor.rest.TaskDone;
-import org.apache.kafka.trogdor.rest.TaskState;
-import org.apache.kafka.trogdor.rest.TasksRequest;
-import org.apache.kafka.trogdor.rest.TasksResponse;
+
+import java.util.Map;
 
 public class TaskStatusAction extends Action  {
     public final static String TYPE = "taskStatus";
+
+    final static String DONE = "DONE";
 
     private final TaskRole role;
 
@@ -49,42 +46,41 @@ public class TaskStatusAction extends Action  {
     @Override
     public void call(final CastleCluster cluster, CastleNode node) throws Throwable {
         try {
-            TasksResponse response = CastleUtil.invokeCoordinator(
-                cluster, node, new CoordinatorFunction<TasksResponse>() {
-                    @Override
-                    public TasksResponse apply(CoordinatorClient coordinatorClient, String endpoint)
-                            throws Exception {
-                        TasksResponse response = coordinatorClient.tasks(
-                            new TasksRequest(null, 0, 0, 0, 0));
-                        if (response == null) {
-                            throw new RuntimeException("Invalid null TaskResponse");
-                        }
-                        return response;
-                    }
-                });
-            ObjectNode results = new ObjectNode(JsonNodeFactory.instance);
+            TrogdorClient client = new TrogdorClient(node);
+            Map<String, JsonNode> tasks = client.getTasks();
             for (String taskId : role.taskSpecs().keySet()) {
-                TaskState state = response.tasks().get(taskId);
+                JsonNode state = tasks.get(taskId);
                 if (state == null) {
-                    cluster.clusterLog().printf("Unable to find task %s%n", taskId);
+                    cluster.clusterLog().printf("** %s: Unable to find task %s%n", node.nodeName(), taskId);
                     cluster.shutdownManager().changeReturnCode(CastleReturnCode.CLUSTER_FAILED);
-                } else if (state instanceof TaskDone) {
-                    TaskDone doneState = (TaskDone) state;
-                    if ((doneState.error() == null) || doneState.error().isEmpty()) {
-                        cluster.clusterLog().printf("Task %s succeeded with status %s%n",
-                            taskId, doneState.status());
-                    } else {
-                        cluster.clusterLog().printf("Task %s failed with error %s%n",
-                            taskId, doneState.error());
+                    continue;
+                }
+                JsonNode stateNode = state.get("state");
+                if (stateNode == null) {
+                    cluster.clusterLog().printf("** Unable to find 'state' field in JSON state data for %s%n",
+                        node.nodeName(), taskId);
+                    cluster.shutdownManager().changeReturnCode(CastleReturnCode.CLUSTER_FAILED);
+                    continue;
+                }
+                JsonNode statusNode = state.get("status");
+                if (statusNode == null) {
+                    statusNode = NullNode.instance;
+                }
+                if (stateNode.textValue().equals(DONE)) {
+                    JsonNode errorNode = state.get("error");
+                    String error = (errorNode == null) ? "" : errorNode.textValue();
+                    if (error.isEmpty()) {
+                        cluster.clusterLog().printf("%s: Task %s failed with error %s%n",
+                            node.nodeName(), taskId, error);
                         cluster.shutdownManager().changeReturnCode(CastleReturnCode.CLUSTER_FAILED);
+                    } else {
+                        cluster.clusterLog().printf("%s: Task %s succeeded with status %s%n",
+                            node.nodeName(), taskId, statusNode);
                     }
-                    results.set(taskId, state.status());
                 } else {
                     cluster.clusterLog().printf("Task %s is in progress with status %s%n",
-                        taskId, state.status());
-                    if (role.waitFor().contains(taskId)) {
-                        cluster.shutdownManager().changeReturnCode(CastleReturnCode.IN_PROGRESS);
-                    }
+                        taskId, statusNode);
+                    cluster.shutdownManager().changeReturnCode(CastleReturnCode.IN_PROGRESS);
                 }
             }
         } catch (Throwable e) {

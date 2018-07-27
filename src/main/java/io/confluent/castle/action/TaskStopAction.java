@@ -17,32 +17,27 @@
 
 package io.confluent.castle.action;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.confluent.castle.cluster.CastleCluster;
 import io.confluent.castle.cluster.CastleNode;
 import io.confluent.castle.common.CastleUtil;
 import io.confluent.castle.role.TaskRole;
 import io.confluent.castle.tool.CastleReturnCode;
-import org.apache.kafka.trogdor.coordinator.CoordinatorClient;
-import org.apache.kafka.trogdor.rest.StopTaskRequest;
-import org.apache.kafka.trogdor.rest.TaskDone;
-import org.apache.kafka.trogdor.rest.TaskState;
-import org.apache.kafka.trogdor.rest.TasksRequest;
-import org.apache.kafka.trogdor.rest.TasksResponse;
 
-import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.Callable;
 
 public class TaskStopAction extends Action  {
     public final static String TYPE = "tasksStop";
 
-    private final Collection<String> taskIds;
+    private final TaskRole role;
 
     public TaskStopAction(String nodeName, TaskRole role) {
         super(new ActionId(TYPE, nodeName),
             new TargetId[] {},
             new String[] {},
             role.initialDelayMs());
-        this.taskIds = role.taskSpecs().keySet();
+        this.role = role;
     }
 
     @Override
@@ -57,42 +52,33 @@ public class TaskStopAction extends Action  {
                 "coordinator process does not appear to be running.%n");
             return;
         }
-
-        // Stop all the tasks.  If the task has already stopped, the StopTaskRequest
-        // will be ignored.
-        CastleUtil.invokeCoordinator(cluster, node, new CastleUtil.CoordinatorFunction<Void>() {
-            @Override
-            public Void apply(CoordinatorClient coordinatorClient, String endpoint) throws Exception {
-                for (String taskId : taskIds) {
-                    coordinatorClient.stopTask(new StopTaskRequest(taskId));
-                }
-                return null;
+        try {
+            TrogdorClient client = new TrogdorClient(node);
+            for (String taskId : role.taskSpecs().keySet()) {
+                client.stopTask(taskId);
             }
-        });
-        // Wait for all the tasks to be stopped.
-        CastleUtil.waitFor(5, 30000, new Callable<Boolean>() {
-            @Override
-            public Boolean call() throws Exception {
-                TasksResponse tasksResponse = CastleUtil.
-                    invokeCoordinator(cluster, node, new CastleUtil.CoordinatorFunction<TasksResponse>() {
-                        @Override
-                        public TasksResponse apply(CoordinatorClient coordinatorClient, String endpoint)
-                                throws Exception {
-                            return coordinatorClient.tasks(
-                                new TasksRequest(null, 0, 0, 0, 0));
+            // Wait for all the tasks to be stopped.
+            CastleUtil.waitFor(5, 30000, new Callable<Boolean>() {
+                @Override
+                public Boolean call() throws Exception {
+                    Map<String, JsonNode> tasks = client.getTasks();
+                    for (String taskId : role.taskSpecs().keySet()) {
+                        JsonNode state = tasks.get(taskId);
+                        if (state != null) {
+                            JsonNode stateNode = state.get("state");
+                            if (stateNode != null) {
+                                if (!stateNode.textValue().equals(TaskStatusAction.DONE)) {
+                                    return false;
+                                }
+                            }
                         }
-                    });
-                for (String taskId : taskIds) {
-                    TaskState taskState = tasksResponse.tasks().get(taskId);
-                    if (taskState == null) {
-                        return true;
                     }
-                    if (!(taskState instanceof TaskDone)) {
-                        return false;
-                    }
+                    return true;
                 }
-                return true;
-            }
-        });
+            });
+        } catch (Throwable e) {
+            cluster.clusterLog().info("Error stopping trogdor tasks", e);
+            cluster.shutdownManager().changeReturnCode(CastleReturnCode.TOOL_FAILED);
+        }
     }
 };

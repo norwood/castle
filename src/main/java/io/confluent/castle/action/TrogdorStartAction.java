@@ -21,6 +21,7 @@ import io.confluent.castle.cluster.CastleCluster;
 import io.confluent.castle.cluster.CastleNode;
 import io.confluent.castle.common.CastleUtil;
 import io.confluent.castle.role.TrogdorAgentRole;
+import io.confluent.castle.role.TrogdorCoordinatorRole;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -38,7 +39,11 @@ public class TrogdorStartAction extends Action  {
     public TrogdorStartAction(TrogdorDaemonType daemonType,
             String scope, int initialDelayMs) {
         super(new ActionId(daemonType.startType(), scope),
-                new TargetId[]{},
+                new TargetId[]{
+                    // We need all nodes to be brought up before we can run this, so that
+                    // we have access to all node internal hostnames.
+                    new TargetId(InitAction.TYPE)
+                },
                 new String[]{},
                 initialDelayMs);
         this.daemonType = daemonType;
@@ -107,12 +112,22 @@ public class TrogdorStartAction extends Action  {
             for (Map.Entry<String, CastleNode> entry : cluster.nodes().entrySet()) {
                 String nodeName = entry.getKey();
                 CastleNode castleNode = entry.getValue();
-                if (castleNode.getRole(TrogdorAgentRole.class) != null) {
+                if ((castleNode.getRole(TrogdorAgentRole.class) != null) ||
+                        (castleNode.getRole(TrogdorCoordinatorRole.class) != null)) {
                     osw.write(String.format("%s    \"%s\": {%n", prefix, nodeName));
                     prefix = String.format(",%n");
-                    osw.write(String.format("      \"hostname\": \"%s\",%n",
+                    if (castleNode.getRole(TrogdorAgentRole.class) == null) {
+                        osw.write(String.format("      \"trogdor.agent.port\": 0,%n"));
+                    } else {
+                        osw.write(String.format("      \"trogdor.agent.port\": %d,%n",
+                            TrogdorAgentRole.PORT));
+                    }
+                    if (castleNode.getRole(TrogdorCoordinatorRole.class) != null) {
+                        osw.write(String.format("      \"trogdor.coordinator.port\": %d,%n",
+                            TrogdorCoordinatorRole.PORT));
+                    }
+                    osw.write(String.format("      \"hostname\": \"%s\"%n",
                         castleNode.uplink().internalDns()));
-                    osw.write(String.format("      \"trogdor.agent.port\": 8888%n"));
                     osw.write(String.format("    }"));
                 }
             }
@@ -151,7 +166,7 @@ public class TrogdorStartAction extends Action  {
             osw.write(String.format("log4j.appender.kafkaAppender.layout=org.apache.log4j.PatternLayout%n"));
             osw.write(String.format("log4j.appender.kafkaAppender.layout.ConversionPattern=%s%n%n",
                 "[%d] %p %m (%c)%n"));
-            osw.write(String.format("log4j.logger.org.apache.kafka=INFO%n"));
+            osw.write(String.format("log4j.logger.org.apache.kafka=DEBUG%n")); //INFO%n"));
             osw.write(String.format("%n"));
             success = true;
             return file;

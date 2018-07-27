@@ -215,9 +215,9 @@ public final class CastleCluster implements AutoCloseable {
      * @return      The spec.
      */
     public CastleClusterSpec toSpec() throws Exception {
-        Map<String, CastleNodeSpec> nodeSpecs = new HashMap<>();
-        Map<String, Role> roles = new HashMap<>();
-        Map<String, String> roleJsonToNames = new HashMap<>();
+        Map<String, CastleNodeSpec> nodeSpecs = new TreeMap<>();
+        Map<String, Role> roles = new TreeMap<>();
+        Map<String, String> roleJsonToNames = new TreeMap<>();
         for (Map.Entry<String, Role> entry : originalRoles.entrySet()) {
             roleJsonToNames.put(CastleTool.JSON_SERDE.
                 writeValueAsString(entry.getValue()), entry.getKey());

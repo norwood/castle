@@ -19,10 +19,7 @@ package io.confluent.castle.common;
 
 import io.confluent.castle.cluster.CastleCluster;
 import io.confluent.castle.cluster.CastleNode;
-import io.confluent.castle.command.PortAccessor;
 import io.confluent.castle.tool.CastleReturnCode;
-import org.apache.kafka.trogdor.coordinator.Coordinator;
-import org.apache.kafka.trogdor.coordinator.CoordinatorClient;
 import org.slf4j.Logger;
 
 import java.io.File;
@@ -308,27 +305,6 @@ public final class CastleUtil {
             }
         }
         return results;
-    }
-
-    public interface CoordinatorFunction<T> {
-        T apply(CoordinatorClient client, String endpoint) throws Exception;
-    }
-
-    /**
-     * Create a coordinator client and open an ssh tunnel, so that we can invoke
-     * the Trogdor coordinator.
-     */
-    public static <T> T invokeCoordinator(final CastleCluster cluster, final CastleNode node,
-                                          CoordinatorFunction<T> func) throws Exception {
-        try (PortAccessor portAccessor = node.uplink().openPort(Coordinator.DEFAULT_PORT)) {
-            CoordinatorClient coordinatorClient = new CoordinatorClient.Builder().
-                maxTries(3).
-                target("localhost", portAccessor.port()).
-                log(node.log()).
-                build();
-            return func.apply(coordinatorClient,
-                String.format("http://localhost:%d", portAccessor.port()));
-        }
     }
 
     /**
