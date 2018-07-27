@@ -39,7 +39,7 @@ public final class BrokerStopAction extends Action {
 
     @Override
     public void call(CastleCluster cluster, CastleNode node) throws Throwable {
-        if (node.uplink() != null) {
+        if (!node.uplink().canLogin()) {
             node.log().printf("*** Skipping brokerStop, because the node is not running.%n");
             return;
         }
