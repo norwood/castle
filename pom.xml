@@ -37,7 +37,7 @@
         <exec-maven-plugin-version>1.6.0</exec-maven-plugin-version>
         <findbugs-maven-plugin.version>3.0.5</findbugs-maven-plugin.version>
         <jackson.version>2.9.6</jackson.version>
-        <junit.version>4.8.1</junit.version>
+        <junit.version>4.12</junit.version>
         <maven-compiler-plugin-version>3.7.0</maven-compiler-plugin-version>
         <maven-dependency-plugin.version>3.0.2</maven-dependency-plugin.version>
         <maven.compiler.source>1.8</maven.compiler.source>
@@ -81,6 +81,13 @@
             <groupId>net.sourceforge.argparse4j</groupId>
             <artifactId>argparse4j</artifactId>
             <version>${argparse4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
