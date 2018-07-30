@@ -21,8 +21,14 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class CastleUtilTest {
     @Rule
@@ -73,5 +79,52 @@ public class CastleUtilTest {
 
     private static void assertStartsWith(String actual, String expected) {
         assertEquals(expected, actual.substring(0, expected.length()));
+    }
+
+    @Test
+    public void testWaitFor() throws Exception {
+        try {
+            CastleUtil.waitFor(1, 2, new Callable<Boolean>() {
+                @Override
+                public Boolean call() throws Exception {
+                    return false;
+                }
+
+                @Override
+                public String toString() {
+                    return "Godot";
+                }
+            });
+        } catch (RuntimeException e) {
+            assertTrue(e.getMessage().startsWith("Timed out waiting for Godot"));
+        }
+
+        final AtomicInteger timesCalled = new AtomicInteger(0);
+        CastleUtil.waitFor(1, 60000, new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                return timesCalled.getAndIncrement() == 0;
+            }
+
+            @Override
+            public String toString() {
+                return "Incrementer";
+            }
+        });
+        assertEquals(1, timesCalled.get());
+    }
+
+    @Test
+    public void testMergeConfig() {
+        Map<String, String> map1 = new HashMap<>();
+        map1.put("foo", "1");
+        map1.put("bar", "1");
+        HashMap<String, String> map2 = new HashMap<>();
+        map2.put("foo", "2");
+        map2.put("quux", "2");
+        Map<String, String> map3 = CastleUtil.mergeConfig(map1, map2);
+        assertEquals("1", map3.get("foo"));
+        assertEquals("1", map3.get("bar"));
+        assertEquals("2", map3.get("quux"));
     }
 }
