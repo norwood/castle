@@ -162,9 +162,13 @@ public final class JmxDumper {
             for (JmxObjectConfig object : file.objects()) {
                 HashMap<String, Object> values = new HashMap<>();
                 List<Attribute> attributeList = null;
+                Collection<String> attributesToGet = object.attributes();
+                if (attributesToGet.isEmpty()) {
+                    attributesToGet = objectNameToAllAttributes.get(object.name());
+                }
                 try {
                     attributeList = connection.getAttributes(object.objectName(),
-                        object.attributes().toArray(new String[0])).asList();
+                        attributesToGet.toArray(new String[0])).asList();
                 } catch (Throwable e) {
                     throw new RuntimeException("Failed to get attributes for object " + object.name(), e);
                 }
@@ -175,11 +179,11 @@ public final class JmxDumper {
                         throw new RuntimeException("Failed to get a value for attribute " + attribute, e);
                     }
                 }
-                for (String attribute : objectNameToAttributes.get(object.name())) {
-                    Object value = values.get(attribute);
+                for (String attributeName : attributesToGet) {
+                    Object value = values.get(attributeName);
                     if (value == null) {
                         throw new RuntimeException("getAttributes failed to fetch a value for " +
-                            object.shortName() + ":" + attribute);
+                            object.name() + ":" + attributeName + ".");
                     }
                     row.addObject(value);
                 }
@@ -290,18 +294,15 @@ public final class JmxDumper {
                 }
                 ArrayList<String> attributeList = new ArrayList<>();
                 for (MBeanAttributeInfo attributeInfo : info.getAttributes()) {
+                    System.out.printf("** %s contains: %s%n", object.name(), attributeInfo);
                     attributeList.add(attributeInfo.getName());
                 }
-                if (object.attributes().isEmpty()) {
-                    objectNameToAttributes.put(object.name(), attributeList);
-                } else {
-                    for (String attribute : object.attributes()) {
-                        if (!attributeList.contains(attribute)) {
-                            throw new RuntimeException("Unable to find attribute " + attribute + " for " +
-                                object.name() + ".  Found: " + String.join(", ", attributeList));
-                        }
+                objectNameToAllAttributes.put(object.name(), attributeList);
+                for (String attribute : object.attributes()) {
+                    if (!attributeList.contains(attribute)) {
+                        throw new RuntimeException("Unable to find attribute " + attribute + " for " +
+                            object.name() + ".  Found: " + String.join("|", attributeList));
                     }
-                    objectNameToAttributes.put(object.name(), object.attributes());
                 }
             }
             System.out.printf("** Located %d object names.%n", objects.size());
@@ -398,7 +399,7 @@ public final class JmxDumper {
     private JMXConnector connector = null;
     private MBeanServerConnection connection = null;
     private final List<CsvFile> csvFiles = new ArrayList<>();
-    private final HashMap<String, List<String>> objectNameToAttributes = new HashMap<>();
+    private final HashMap<String, List<String>> objectNameToAllAttributes = new HashMap<>();
 
     JmxDumper(String endpoint, JmxDumperConfig dumperConfig, Completer completer) throws Exception {
         this.url = new DumperUrl(endpoint);
