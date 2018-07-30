@@ -141,14 +141,14 @@ public final class CastleTool {
             .type(String.class)
             .dest(CASTLE_CLUSTER_INPUT_PATH)
             .metavar(CASTLE_CLUSTER_INPUT_PATH)
-            .setDefault("")
+            .setDefault(getEnv(CASTLE_CLUSTER_INPUT_PATH, ""))
             .help("The cluster file to use.");
         parser.addArgument("-w", "--working-directory")
             .action(store())
             .type(String.class)
-            .required(true)
             .dest(CASTLE_WORKING_DIRECTORY)
             .metavar(CASTLE_WORKING_DIRECTORY)
+            .setDefault(getEnv(CASTLE_WORKING_DIRECTORY, ""))
             .help("The output path to store logs, cluster files, and other outputs in.");
         parser.addArgument("-v")
             .action(storeTrue())
@@ -178,6 +178,10 @@ public final class CastleTool {
                 System.exit(0);
             }
             String workingDirectory = res.getString(CASTLE_WORKING_DIRECTORY);
+            if (workingDirectory == null || workingDirectory.isEmpty()) {
+                throw new RuntimeException("You must specify the working directory " +
+                    "with -w or " + CASTLE_WORKING_DIRECTORY);
+            }
             String clusterPath = res.getString(CASTLE_CLUSTER_INPUT_PATH);
             Path defaultClusterConfPath = Paths.get(workingDirectory,
                 CastleEnvironment.CLUSTER_FILE_NAME);
