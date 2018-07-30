@@ -11,6 +11,17 @@ You can build Castle with Maven 3.  Version 3.3.9 has been confirmed to work, bu
 
     mvn install -DskipTests -Dfindbugs.skip
 
+Running Castle on Docker
+------------------------
+    # Set up the Kafka path.
+    export CASTLE_KAFKA_PATH="/home/cmccabe/src/kafka"
+
+    # Bring up a simple 1-node cluster
+    ./bin/castle.sh -c ./conf/simple_aws.conf -v -w /tmp/simple up
+
+    # Check the status of the cluster
+    ./bin/castle.sh -w /tmp/simple status
+
 Running Castle on AWS
 ---------------------
     # Set up our AWS information and Kafka path.
@@ -20,7 +31,7 @@ Running Castle on AWS
     export CASTLE_KAFKA_PATH="/home/cmccabe/src/kafka"
 
     # Bring up a simple 1-node cluster
-    ./bin/castle.sh -c ./conf/simple_aws.json -v -w /tmp/simple up
+    ./bin/castle.sh -c ./conf/simple_aws.conf -v -w /tmp/simple up
 
     # Check the status of the cluster
     ./bin/castle.sh -w /tmp/simple status
@@ -43,6 +54,8 @@ specify what the tool should do.  The most important actions are these:
       saveLogs:        Save the system logs.
       stop:            Stop the system.
       destroy:         Deallocate nodes.
+
+    destroyNodes:      Destroy all nodes.
 
 "up" contains three actions: "init", "setup", and "start".  These can also be
 invoked separately, if you want.  Similarly, status and down contain other

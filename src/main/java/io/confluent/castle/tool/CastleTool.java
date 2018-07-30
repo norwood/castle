@@ -83,6 +83,8 @@ public final class CastleTool {
         "  stop:            Stop the system.%n" +
         "  destroy:         Deallocate nodes.%n" +
         "%n" +
+        "destroyNodes:    Destroy all nodes.%n" +
+        "%n" +
         "ssh [nodes] [cmd]: Ssh to the given node(s)%n" +
         "%n");
 
