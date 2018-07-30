@@ -25,6 +25,7 @@ import io.confluent.castle.role.TrogdorAgentRole;
 import io.confluent.castle.role.TrogdorCoordinatorRole;
 import io.confluent.castle.role.ZooKeeperRole;
 import io.confluent.castle.tool.CastleEnvironment;
+import io.confluent.castle.tool.MockCastleEnvironment;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
@@ -79,7 +80,7 @@ public class CastleClusterSpecTest {
     public void testToCastleCluster() throws Exception {
         CastleClusterSpec clusterSpec = createCastleClusterSpec();
         CastleCluster cluster = new CastleCluster(
-            new CastleEnvironment("", ""),
+            new MockCastleEnvironment(),
             CastleLog.fromStdout("cluster", true),
             null,
             clusterSpec);

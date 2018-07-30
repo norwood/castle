@@ -193,7 +193,7 @@ public final class CastleTool {
                     " does not exist.");
             }
             Files.createDirectories(Paths.get(workingDirectory));
-            CastleEnvironment env = new CastleEnvironment(clusterPath, workingDirectory);
+            CastleEnvironment env = new CastleEnvironment(workingDirectory);
             CastleClusterSpec clusterSpec = readClusterSpec(clusterPath);
 
             try (CastleCluster cluster = new CastleCluster(env, clusterLog,

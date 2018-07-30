@@ -20,32 +20,14 @@ package io.confluent.castle.tool;
 import io.confluent.castle.common.CastleLog;
 
 import java.io.IOException;
-import java.nio.file.Paths;
 
-public class CastleEnvironment {
-    public static final String CLUSTER_FILE_NAME = "cluster.conf";
-    private final String workingDirectory;
-
-    public CastleEnvironment(String workingDirectory) {
-        this.workingDirectory = toAbsolutePath(workingDirectory);
+public class MockCastleEnvironment extends CastleEnvironment {
+    public MockCastleEnvironment() {
+        super("");
     }
 
-    private String toAbsolutePath(String path) {
-        if (path == null) {
-            path = "";
-        }
-        return Paths.get(path).toAbsolutePath().toString();
-    }
-
+    @Override
     public CastleLog createCastleLog(String nodeName) throws IOException {
-        return CastleLog.fromFile(workingDirectory, nodeName, true);
-    }
-
-    public String workingDirectory() {
-        return workingDirectory;
-    }
-
-    public String clusterOutputPath() {
-        return Paths.get(workingDirectory, CLUSTER_FILE_NAME).toAbsolutePath().toString();
+        return CastleLog.fromDevNull(nodeName, false);
     }
 };

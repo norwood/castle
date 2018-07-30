@@ -25,6 +25,7 @@ import io.confluent.castle.common.CastleLog;
 import io.confluent.castle.role.MockCloudRole;
 import io.confluent.castle.role.Role;
 import io.confluent.castle.tool.CastleEnvironment;
+import io.confluent.castle.tool.MockCastleEnvironment;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
@@ -53,7 +54,7 @@ public class ActionSchedulerTest {
         Map<String, Role> roles = new HashMap<>();
         roles.put("mockCloud", new MockCloudRole());
         CastleClusterSpec spec = new CastleClusterSpec(null, map, roles);
-        return new CastleCluster(new CastleEnvironment("" , ""),
+        return new CastleCluster(new MockCastleEnvironment(),
             CastleLog.fromDevNull("cluster", false), null, spec);
     }
 
