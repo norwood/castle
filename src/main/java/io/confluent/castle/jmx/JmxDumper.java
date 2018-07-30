@@ -158,9 +158,7 @@ public final class JmxDumper {
 
         public void storeJmx(long time) throws Exception {
             CsvRow row = new CsvRow();
-            float timeSeconds = time;
-            timeSeconds /= 1000;
-            row.add(timeSeconds);
+            row.addTimeMs(time);
             for (JmxObjectConfig object : file.objects()) {
                 HashMap<String, Object> values = new HashMap<>();
                 List<Attribute> attributeList = null;
@@ -193,6 +191,15 @@ public final class JmxDumper {
     private static final class CsvRow {
         private boolean first = true;
         private final StringBuilder bld = new StringBuilder();
+
+        CsvRow addTimeMs(long timeMs) {
+            if (!first) bld.append(", ");
+            first = false;
+            double time = timeMs;
+            time /= 1000.0;
+            bld.append(String.format("%.3f", time));
+            return this;
+        }
 
         CsvRow add(Number val) {
             if (!first) bld.append(", ");
