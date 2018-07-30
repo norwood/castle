@@ -87,6 +87,16 @@ class CsvColumn(object):
                              self.csv_file.basename,
                              self.csv_file.title_row[self.index])
 
+    def monotonic(self):
+        prev_value = None
+        for value in self.values(False, False):
+            if prev_value is not None:
+                if prev_value > value:
+                    return False
+            prev_value = value
+        return True
+
+
     def values(self, shift_time_axis, derivative):
         with open(self.csv_file.path, 'r') as input_file:
             reader = csv.reader(input_file, delimiter=',')
@@ -127,10 +137,17 @@ parser.add_argument(
     '-c', '--column-name', dest='column_names', action='append',
     help="Set the column names we should graph.  May be specified more than once.")
 parser.add_argument(
-    '-D', '--derivative', dest='derivative', action='store_true',
-    help="Take the derivative of the value.")
+    '-d', '--derivative', dest='derivative', action='store_true',
+    help="Take the derivative of all columns.")
+parser.add_argument(
+    '-D', '--no-derivative', dest='no_derivative', action='store_true',
+    help="Disable taking the derivative for all columns.")
 parser.add_argument('csv_files', nargs='*', help="Paths to the csv files to graph.")
 cmd_args = vars(parser.parse_args())
+
+if len(cmd_args["csv_files"]) == 0:
+    parser.print_help(sys.stdout)
+    sys.exit(0)
 
 # Load CSV files.
 csv_files = []
@@ -166,8 +183,14 @@ for csv_file in csv_files:
         if column is not None:
             x = []
             y = []
+            if cmd_args["derivative"]:
+                derivative = True
+            elif cmd_args["no_derivative"]:
+                derivative = False
+            else:
+                derivative = column.monotonic()
             for (timestamp, data) in column.values(cmd_args["shift_time_axis"],
-                                                   cmd_args["derivative"]):
+                                                   derivative):
                 x.append(datetime.datetime.fromtimestamp(timestamp))
                 y.append(data)
             plt.plot(x, y, label=column.pretty_name())
