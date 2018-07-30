@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public final class CastleSsh {
@@ -53,7 +54,7 @@ public final class CastleSsh {
         }
     }
 
-    static CastleSshArgs parse(CastleCluster cluster, Collection<String> targets) {
+    static CastleSshArgs parse(Set<String> clusterNodeNames, Collection<String> targets) {
         List<String> t = new LinkedList<>(targets);
         Iterator<String> iter = t.iterator();
         if (!iter.hasNext()) {
@@ -69,7 +70,7 @@ public final class CastleSsh {
         String val = iter.next();
         if (val.equals("all")) {
             iter.remove();
-            return new CastleSshArgs(cluster.nodes().keySet(), t);
+            return new CastleSshArgs(clusterNodeNames, t);
         }
         ArrayList<String> nodeNames = new ArrayList<>();
         ArrayList<String> command = new ArrayList<>();
@@ -78,7 +79,7 @@ public final class CastleSsh {
                 iter.remove();
                 break;
             }
-            if (!cluster.nodes().keySet().contains(val)) {
+            if (!clusterNodeNames.contains(val)) {
                 iter.remove();
                 command.add(val);
                 break;
@@ -95,7 +96,7 @@ public final class CastleSsh {
     }
 
     public static void run(CastleCluster cluster, List<String> targets) throws Throwable {
-        CastleSshArgs args = parse(cluster, targets);
+        CastleSshArgs args = parse(cluster.nodes().keySet(), targets);
         if (args.nodeNames().isEmpty()) {
             if (args.command().isEmpty()) {
                 throw new RuntimeException("You must supply at least one node to ssh to.");
