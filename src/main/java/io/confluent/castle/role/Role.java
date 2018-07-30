@@ -17,7 +17,6 @@
 
 package io.confluent.castle.role;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.confluent.castle.action.Action;
 
@@ -31,18 +30,6 @@ import java.util.Collection;
 @JsonTypeInfo(use = JsonTypeInfo.Id.MINIMAL_CLASS,
     include = JsonTypeInfo.As.PROPERTY,
     property = "type")
-//@JsonSubTypes(value = {
-//    @JsonSubTypes.Type(value = AwsNodeRole.class, name = "awsNode"),
-//    @JsonSubTypes.Type(value = BrokerRole.class, name = "broker"),
-//    @JsonSubTypes.Type(value = CollectdRole.class, name = "collectd"),
-//    @JsonSubTypes.Type(value = DockerNodeRole.class, name = "dockerNode"),
-//    @JsonSubTypes.Type(value = JmxDumperRole.class, name = "jmx"),
-//    @JsonSubTypes.Type(value = TaskRole.class, name = "task"),
-//    @JsonSubTypes.Type(value = TrogdorAgentRole.class, name = "trogdorAgent"),
-//    @JsonSubTypes.Type(value = TrogdorCoordinatorRole.class, name = "trogdorCoordinator"),
-//    @JsonSubTypes.Type(value = UbuntuNodeRole.class, name = "ubuntuNode"),
-//    @JsonSubTypes.Type(value = ZooKeeperRole.class, name = "zooKeeper"),
-//    })
 public interface Role {
     /**
      * Create the actions for this node.
