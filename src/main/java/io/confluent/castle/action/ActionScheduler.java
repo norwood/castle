@@ -45,7 +45,7 @@ import org.slf4j.LoggerFactory;
  * Runs roles for cluster nodes.
  */
 public final class ActionScheduler implements AutoCloseable {
-    private static final Logger log = LoggerFactory.getLogger(ActionScheduler.class);
+    static final Logger log = LoggerFactory.getLogger(ActionScheduler.class);
 
     /**
      * A mutable builder object used to construct the ActionScheduler.

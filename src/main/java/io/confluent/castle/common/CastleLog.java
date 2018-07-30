@@ -60,6 +60,15 @@ public final class CastleLog implements AutoCloseable, Logger {
         return new CastleLog(name, System.out, enableDebug);
     }
 
+    public static CastleLog fromDevNull(String name, boolean enableDebug) throws IOException {
+        return new CastleLog(name, new OutputStream() {
+            @Override
+            public void write(int b) throws IOException {
+                // do nothing
+            }
+        }, enableDebug);
+    }
+
     public CastleLog(String name, OutputStream outputStream, boolean enableDebug) {
         this.name = name;
         this.outputStream = outputStream;
