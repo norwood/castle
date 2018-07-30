@@ -59,13 +59,13 @@ public class NodeShellRunner {
             boolean endedWithNewline = true;
             try {
                 while (true) {
-                    int ret = stream.read(arr);
+                    int ret = stream.read(arr, 0, arr.length - 1);
                     if (ret == -1) {
                         break;
                     }
                     for (StringBuilder stringBuilder : stringBuilders) {
                         synchronized (stringBuilder) {
-                            stringBuilder.append(new String(arr, StandardCharsets.UTF_8));
+                            stringBuilder.append(new String(arr, 0, ret, StandardCharsets.UTF_8));
                         }
                     }
                     if (castleLog != null) {
