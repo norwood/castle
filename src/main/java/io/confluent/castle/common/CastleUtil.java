@@ -34,9 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -108,28 +106,6 @@ public final class CastleUtil {
             buf.append(c);
         }
         return buf.toString();
-    }
-
-
-    /**
-     * Await the termination of an ExecutorService without the possibility of
-     * interruption.
-     *
-     * @param executor      The ExecutorService
-     */
-    public final static void awaitTerminationUninterruptibly(ExecutorService executor) {
-        boolean wasInterrupted = false;
-        while (true) {
-            try {
-                executor.awaitTermination(36500, TimeUnit.DAYS);
-                break;
-            } catch (InterruptedException e) {
-                wasInterrupted = true;
-            }
-        }
-        if (wasInterrupted) {
-            Thread.currentThread().interrupt();
-        }
     }
 
     public final static void deleteFileOrLog(CastleLog castleLog, File file) throws IOException {
