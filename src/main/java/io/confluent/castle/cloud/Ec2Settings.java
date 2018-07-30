@@ -34,9 +34,9 @@ public final class Ec2Settings {
     public Ec2Settings(@JsonProperty("keyPair") String keyPair,
                        @JsonProperty("securityGroup") String securityGroup,
                        @JsonProperty("region") String region) {
-        this.keyPair = keyPair;
-        this.securityGroup = securityGroup;
-        this.region = region;
+        this.keyPair = keyPair == null ? "" : keyPair;
+        this.securityGroup = securityGroup == null ? "" : securityGroup;
+        this.region = region == null ? "" : region;
     }
 
     @JsonProperty
