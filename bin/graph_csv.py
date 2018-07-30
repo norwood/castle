@@ -83,9 +83,8 @@ class CsvColumn(object):
         self.index = index
 
     def pretty_name(self):
-        return "%d.%s.%s" % (self.index,
-                             self.csv_file.basename,
-                             self.csv_file.title_row[self.index])
+        return "%s.%s" % (self.csv_file.basename,
+                          self.csv_file.title_row[self.index])
 
     def monotonic(self):
         prev_value = None
@@ -177,6 +176,7 @@ for column_name in cmd_args["column_names"]:
         sys.exit(1)
 
 # Populate the graph.
+csv_index = 0
 for csv_file in csv_files:
     for selector in column_selectors:
         column = csv_file.get_column(selector.name)
@@ -193,7 +193,8 @@ for csv_file in csv_files:
                                                    derivative):
                 x.append(datetime.datetime.fromtimestamp(timestamp))
                 y.append(data)
-            plt.plot(x, y, label=column.pretty_name())
+            plt.plot(x, y, label="%d.%s" % (csv_index, column.pretty_name()))
+    csv_index = csv_index + 1
 if cmd_args["name"] is None:
     plt.title('Castle Test Graphs')
 else:
