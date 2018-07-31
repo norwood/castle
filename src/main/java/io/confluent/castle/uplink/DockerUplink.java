@@ -135,4 +135,8 @@ public class DockerUplink implements Uplink {
     public void close() throws Exception {
         // nothing to do
     }
+
+    public void cleanupNetwork() throws Exception {
+        cloud.cleanupNetwork(node);
+    }
 }

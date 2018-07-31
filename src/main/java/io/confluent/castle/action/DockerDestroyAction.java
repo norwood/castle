@@ -20,7 +20,10 @@ package io.confluent.castle.action;
 import io.confluent.castle.cluster.CastleCluster;
 import io.confluent.castle.cluster.CastleNode;
 import io.confluent.castle.role.DockerNodeRole;
+import io.confluent.castle.tool.CastleReturnCode;
+import io.confluent.castle.tool.CastleShutdownHook;
 import io.confluent.castle.tool.CastleWriteClusterFileHook;
+import io.confluent.castle.uplink.DockerUplink;
 
 /**
  * Destroys a docker node.
@@ -47,5 +50,33 @@ public final class DockerDestroyAction extends Action {
         role.setContainerName("");
         role.setSshIdentityPath("");
         cluster.shutdownManager().addHookIfMissing(new CastleWriteClusterFileHook(cluster));
+        cluster.shutdownManager().addHookIfMissing(
+            new CleanupDockerNetworkIfNeededHook(cluster, node));
     }
+
+    public static class CleanupDockerNetworkIfNeededHook extends CastleShutdownHook {
+        private final CastleCluster cluster;
+        private final CastleNode node;
+
+        CleanupDockerNetworkIfNeededHook(CastleCluster cluster, CastleNode node) {
+            super("CleanupDockerNetworkIfNeededHook");
+            this.cluster = cluster;
+            this.node = node;
+        }
+
+        @Override
+        public void run(CastleReturnCode returnCode) throws Throwable {
+            // Make sure there are no docker nodes with an uplink.
+            for (String nodeName : cluster.nodesWithRole(DockerNodeRole.class).values()) {
+                CastleNode node = cluster.nodes().get(nodeName);
+                if (node.uplink().canLogin()) {
+                    return;
+                }
+            }
+            // Remove the docker network.
+            DockerUplink uplink = (DockerUplink) node.uplink();
+            uplink.cleanupNetwork();
+        }
+    }
+
 }

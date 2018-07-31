@@ -200,6 +200,11 @@ public final class DockerCloud implements AutoCloseable {
         return containers;
     }
 
+    public static void cleanupNetwork(CastleNode node) throws Exception {
+        List<String> rmNet = Arrays.asList(new String[] {"docker", "network", "rm", NETWORK});
+        new NodeShellRunner(node, rmNet).run();
+    }
+
     private static class NetworkCheck implements Callable<Void> {
         private final CastleNode node;
 
@@ -209,19 +214,12 @@ public final class DockerCloud implements AutoCloseable {
 
         @Override
         public Void call() throws Exception {
-            List<String> inspect = Arrays.asList(new String[] {
-                "docker", "network", "inspect", NETWORK});
-            if (new NodeShellRunner(node, inspect).
-                    setLogOutputOnSuccess(false).
-                    run() == 0) {
-                node.log().printf("** %s is running.%n", NETWORK);
-                return null;
-            }
-            node.log().printf("** starting %s.%n", NETWORK);
+            node.log().printf("** Removing any old version of %s.%n", NETWORK);
+            cleanupNetwork(node);
             List<String> create = Arrays.asList(new String[] {
                 "docker", "network", "create", NETWORK});
             if (new NodeShellRunner(node, create).run() == 0) {
-                node.log().printf("** successfully created %s.%n", NETWORK);
+                node.log().printf("** Successfully created %s.%n", NETWORK);
                 return null;
             }
             throw new RuntimeException("Failed to create " + NETWORK + ".");
@@ -233,6 +231,8 @@ public final class DockerCloud implements AutoCloseable {
         new NodeShellRunner(node, kill).run();
         List<String> rm = Arrays.asList(new String[] {"docker", "rm", containerName});
         new NodeShellRunner(node, rm).run();
+        List<String> rmNet = Arrays.asList(new String[] {"docker", "network", "rm", NETWORK});
+        new NodeShellRunner(node, rmNet).run();
     }
 
     public void shutdownAll(CastleCluster cluster, CastleNode node) throws Exception {
@@ -248,16 +248,17 @@ public final class DockerCloud implements AutoCloseable {
             CastleLog.printToAll(String.format(
                     "*** %s: No docker containers found.%n", node.nodeName()),
                 node.log(), cluster.clusterLog());
-            return;
+        } else {
+            CastleLog.printToAll(String.format("*** %s: Removing docker container(s): %s.%n",
+                node.nodeName(), String.join(", ", containers)),
+                node.log(), cluster.clusterLog());
+            List<String> killAll = new ArrayList<>(Arrays.asList(new String[]{"docker", "kill"}));
+            killAll.addAll(containers);
+            new NodeShellRunner(node, killAll).run();
+            List<String> rmAll = new ArrayList<>(Arrays.asList(new String[]{"docker", "rm"}));
+            rmAll.addAll(containers);
+            new NodeShellRunner(node, rmAll).run();
         }
-        CastleLog.printToAll(String.format("*** %s: Removing docker container(s): %s.%n",
-            node.nodeName(), String.join(", ", containers)),
-            node.log(), cluster.clusterLog());
-        List<String> killAll = new ArrayList<>(Arrays.asList(new String[] {"docker", "kill"}));
-        killAll.addAll(containers);
-        new NodeShellRunner(node, killAll).run();
-        List<String> rmAll = new ArrayList<>(Arrays.asList(new String[] {"docker", "rm"}));
-        rmAll.addAll(containers);
-        new NodeShellRunner(node, rmAll).run();
+        cleanupNetwork(node);
     }
 }
