@@ -89,10 +89,11 @@ class CsvColumn(object):
     def monotonic(self):
         prev_value = None
         for value in self.values(False, False):
+            current_value = float(value[1])
             if prev_value is not None:
-                if prev_value > value:
+                if prev_value > current_value:
                     return False
-            prev_value = value
+            prev_value = current_value
         return True
 
 
