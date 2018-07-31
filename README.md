@@ -25,6 +25,9 @@ Running Castle on Docker
 Running Castle on AWS
 ---------------------
     # Set up our AWS information and Kafka path.
+    export AWS_REGION="us-west-2"
+    export AWS_ACCESS_KEY="(my AWS access key)"
+    export AWS_SECRET_ACCESS_KEY="(my AWS secret access key)"
     export CASTLE_AWS_KEY="(my AWS key)"
     export CASTLE_AWS_SECURITY_GROUP="(my AWS security group)"
     export CASTLE_SSH_IDENTITY_FILE="(my AWS ssh identity file)"
