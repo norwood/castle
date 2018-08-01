@@ -41,6 +41,7 @@ public class ActionRegistry {
         INSTANCE.register(StatusAction.class);
         INSTANCE.register(StopAction.class);
         INSTANCE.register(UpAction.class);
+        INSTANCE.register(CleanAction.class);
     }
 
     private final List<Class<? extends Action>> classes = new ArrayList<>();
