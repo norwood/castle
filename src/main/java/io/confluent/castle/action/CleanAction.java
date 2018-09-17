@@ -44,6 +44,6 @@ public final class CleanAction extends Action {
             node.log().printf("*** Skipping clean, because we can't log into the node.%n");
             return;
         }
-        node.uplink().command().args("rm", "-rf", "--", "/mnt/*").mustRun();
+        node.uplink().command().args("sudo", "rm", "-rf", "--", "/mnt/*").mustRun();
     }
 }
