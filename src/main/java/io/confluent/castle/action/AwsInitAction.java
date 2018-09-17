@@ -47,13 +47,13 @@ public final class AwsInitAction extends Action {
 
     @Override
     public void call(final CastleCluster cluster, final CastleNode node) throws Throwable {
-        if (new File(cluster.env().clusterOutputPath()).exists()) {
-            throw new RuntimeException("Output cluster path " + cluster.env().clusterOutputPath() +
-                " already exists.");
-        }
         if (node.uplink().started()) {
             node.log().printf("*** Skipping %s, because the node is already running.%n", TYPE);
             return;
+        }
+        if (new File(cluster.env().clusterOutputPath()).exists()) {
+            throw new RuntimeException("Output cluster path " + cluster.env().clusterOutputPath() +
+                " already exists.");
         }
 
         // Make sure that we don't leak an AWS instance if we shut down unexpectedly.
