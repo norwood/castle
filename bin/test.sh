@@ -23,14 +23,13 @@ die() {
     exit 1
 }
 
-[[ -f "${CASTLE_CLUSTER_INPUT_PATH}" ]] || \
-    die "You must set CASTLE_CLUSTER_INPUT_PATH to the location of a spec file."
 [[ -z "${CASTLE_WORKING_DIRECTORY}" ]] && \
     die "You must set CASTLE_WORKING_DIRECTORY to where you want the working directory to be."
 export CASTLE_WORKING_DIRECTORY
-export CASTLE_CLUSTER_INPUT_PATH
 
 # Bring up the cluster
+"${CASTLE_BIN}" ${@} -v clean || \
+    die "Failed to clean the cluster."
 "${CASTLE_BIN}" ${@} -v up || \
     die "Failed to bring up the cluster."
 unset CASTLE_CLUSTER_INPUT_PATH
@@ -45,7 +44,10 @@ wait ${wait_bin_pid}
 wait_status=$?
 kill ${tail_pid}
 
-# Bring down the cluster.
-"${CASTLE_BIN}" ${@} -v down || \
-    die "Failed to bring down the cluster."
+"${CASTLE_BIN}" ${@} -v stop saveLogs || \
+    die "Failed to stop the cluster and save logs"
+
+## Bring down the cluster.
+#"${CASTLE_BIN}" ${@} -v down || \
+#    die "Failed to bring down the cluster."
 exit $wait_status
