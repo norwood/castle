@@ -82,11 +82,19 @@ public final class DockerCloud implements AutoCloseable {
             "--network=" + NETWORK,
             "-p", "::22"}));
         if (!cluster.conf().castlePath().isEmpty()) {
+            if (!Files.isDirectory(Paths.get(cluster.conf().castlePath()))) {
+                throw new RuntimeException("Unable to access Castle path " +
+                    cluster.conf().castlePath());
+            }
             run.add("-v");
             run.add(String.format("%s:%s", cluster.conf().castlePath(),
                 ActionPaths.CASTLE_SRC));
         }
         if (!cluster.conf().kafkaPath().isEmpty()) {
+            if (!Files.isDirectory(Paths.get(cluster.conf().kafkaPath()))) {
+                throw new RuntimeException("Unable to access Kafka path " +
+                    cluster.conf().kafkaPath());
+            }
             run.add("-v");
             run.add(String.format("%s:%s", cluster.conf().kafkaPath(),
                 ActionPaths.KAFKA_SRC));
