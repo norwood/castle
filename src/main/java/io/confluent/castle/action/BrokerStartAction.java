@@ -128,6 +128,8 @@ public final class BrokerStartAction extends Action {
             osw = new OutputStreamWriter(fos, StandardCharsets.UTF_8);
             osw.write(String.format("broker.id=%d%n", getBrokerId(cluster, node)));
             osw.write(String.format("listeners=%s://:9092%n", role.externalAuth()));
+            osw.write(String.format("advertised.listeners=%s://:9092%n", role.externalAuth()));
+            osw.write(String.format("inter.broker.listener.name=%s%n", role.externalAuth()));
             osw.write(String.format("advertised.host.name=%s%n",
                 node.uplink().internalDns()));
             osw.write(String.format("log.dirs=%s%n", KAFKA_OPLOGS));
