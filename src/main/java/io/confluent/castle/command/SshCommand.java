@@ -208,6 +208,10 @@ public class SshCommand implements Command {
         // TODO: can we enable this on subsequent sshes?
         commandLine.add("-o");
         commandLine.add("StrictHostKeyChecking=no");
+        // Disable checking for known hosts.
+        // TODO: do this only for docker images?
+        commandLine.add("-o");
+        commandLine.add("UserKnownHostsFile=/dev/null");
 
         return commandLine;
     }
