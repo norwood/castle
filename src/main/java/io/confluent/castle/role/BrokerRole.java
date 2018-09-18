@@ -35,16 +35,21 @@ public class BrokerRole implements Role {
 
     private static final String DEFAULT_JVM_PERFORMANCE_OPTS = "-Xmx3g -Xms3g";
 
+    private static final String DEFAULT_EXTERNAL_AUTH = "PLAINTEXT";
+
     private final int initialDelayMs;
 
     private final Map<String, String> conf;
 
     private final String jvmOptions;
 
+    private final String externalAuth;
+
     @JsonCreator
     public BrokerRole(@JsonProperty("initialDelayMs") int initialDelayMs,
                       @JsonProperty("conf") Map<String, String> conf,
-                      @JsonProperty("jvmOptions") String jvmOptions) {
+                      @JsonProperty("jvmOptions") String jvmOptions,
+                      @JsonProperty("externalAuth") String externalAuth) {
         this.initialDelayMs = initialDelayMs;
         this.conf = conf == null ? Collections.emptyMap() :
             Collections.unmodifiableMap(new HashMap<>(conf));
@@ -53,6 +58,8 @@ public class BrokerRole implements Role {
         } else {
             this.jvmOptions = jvmOptions;
         }
+        this.externalAuth = externalAuth == null ?
+            DEFAULT_EXTERNAL_AUTH : externalAuth;
     }
 
     @JsonProperty
@@ -68,6 +75,11 @@ public class BrokerRole implements Role {
     @JsonProperty
     public String jvmOptions() {
         return jvmOptions;
+    }
+
+    @JsonProperty
+    public String externalAuth() {
+        return externalAuth;
     }
 
     @Override

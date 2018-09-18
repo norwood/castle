@@ -22,6 +22,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.confluent.castle.action.Action;
 import io.confluent.castle.action.AwsDestroyAction;
 import io.confluent.castle.action.AwsInitAction;
+import io.confluent.castle.action.CopyAdditionalFilesAction;
 import io.confluent.castle.action.DestroyNodesAction;
 import io.confluent.castle.action.SaveLogsAction;
 import io.confluent.castle.action.SourceSetupAction;
@@ -35,6 +36,8 @@ import io.confluent.castle.uplink.Uplink;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.function.Function;
 
 public class AwsNodeRole implements Role, UplinkRole {
@@ -109,6 +112,11 @@ public class AwsNodeRole implements Role, UplinkRole {
      */
     private String region;
 
+    /**
+     * Additional files to copy into the docker image.
+     */
+    private final List<AdditionalFile> additionalFiles;
+
     @JsonCreator
     public AwsNodeRole(@JsonProperty("keyPair") String keyPair,
                        @JsonProperty("securityGroup") String securityGroup,
@@ -121,7 +129,8 @@ public class AwsNodeRole implements Role, UplinkRole {
                        @JsonProperty("privateDns") String privateDns,
                        @JsonProperty("publicDns") String publicDns,
                        @JsonProperty("instanceId") String instanceId,
-                       @JsonProperty("region") String region) {
+                       @JsonProperty("region") String region,
+                       @JsonProperty("additionalFiles") List<AdditionalFile> additionalFiles) {
         this.keyPair = keyPair == null ? "" : keyPair;
         this.securityGroup = securityGroup == null ? "" : securityGroup;
         this.imageId = imageId == null ? IMAGE_ID_DEFAULT : imageId;
@@ -134,6 +143,8 @@ public class AwsNodeRole implements Role, UplinkRole {
         this.publicDns = publicDns == null ? "" : publicDns;
         this.instanceId = instanceId == null ? "" : instanceId;
         this.region = region == null ? "" : region;
+        this.additionalFiles = additionalFiles == null ? Collections.emptyList() :
+            Collections.unmodifiableList(new ArrayList<>(additionalFiles));
     }
 
     @JsonProperty
@@ -208,6 +219,11 @@ public class AwsNodeRole implements Role, UplinkRole {
         this.instanceId = instanceId;
     }
 
+    @JsonProperty
+    public List<AdditionalFile> additionalFiles() {
+        return this.additionalFiles;
+    }
+
     @Override
     public Collection<Action> createActions(String nodeName) {
         ArrayList<Action> actions = new ArrayList<>();
@@ -217,6 +233,9 @@ public class AwsNodeRole implements Role, UplinkRole {
         actions.add(new SaveLogsAction(nodeName));
         actions.add(new SourceSetupAction(nodeName));
         actions.add(new UplinkCheckAction(nodeName));
+        if (!additionalFiles.isEmpty()) {
+            actions.add(new CopyAdditionalFilesAction(nodeName, additionalFiles));
+        }
         return actions;
     }
 

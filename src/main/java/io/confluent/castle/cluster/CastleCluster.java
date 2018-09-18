@@ -147,7 +147,11 @@ public final class CastleCluster implements AutoCloseable {
         for (String nodeName : nodesWithRole(BrokerRole.class).values()) {
             bld.append(prefix);
             prefix = ",";
-            bld.append(nodes().get(nodeName).uplink().internalDns()).append(":9092");
+            CastleNode node = nodes.get(nodeName);
+            BrokerRole role = node.getRole(BrokerRole.class);
+            bld.append(String.format("%s://%s:9092",
+                role.externalAuth(),
+                node.uplink().internalDns()));
         }
         return bld.toString();
     }

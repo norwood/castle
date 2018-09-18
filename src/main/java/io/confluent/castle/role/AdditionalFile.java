@@ -15,24 +15,29 @@
  * limitations under the License.
  */
 
-package io.confluent.castle.action;
+package io.confluent.castle.role;
 
-/**
- * Sets up a new node.
- */
-public final class SetupAction extends Action {
-    public final static String TYPE = "setup";
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-    public SetupAction(String scope) {
-        super(new ActionId(TYPE, scope),
-            new TargetId[] {
-                new TargetId(InitAction.TYPE, scope)
-            },
-            new String[] {
-                SourceSetupAction.TYPE,
-                LinuxSetupAction.TYPE,
-                CopyAdditionalFilesAction.TYPE,
-            },
-            0);
+public class AdditionalFile {
+    private final String local;
+    private final String remote;
+
+    @JsonCreator
+    public AdditionalFile(@JsonProperty("local") String local,
+                          @JsonProperty("remote") String remote) {
+        this.local = local == null ? "" : local;
+        this.remote = remote == null ? "" : remote;
     }
-}
+
+    @JsonProperty
+    public String local() {
+        return local;
+    }
+
+    @JsonProperty
+    public String remote() {
+        return remote;
+    }
+};

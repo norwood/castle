@@ -20,6 +20,7 @@ package io.confluent.castle.role;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.confluent.castle.action.Action;
+import io.confluent.castle.action.CopyAdditionalFilesAction;
 import io.confluent.castle.action.DestroyNodesAction;
 import io.confluent.castle.action.DockerDestroyAction;
 import io.confluent.castle.action.DockerInitAction;
@@ -32,6 +33,8 @@ import io.confluent.castle.uplink.Uplink;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.function.Function;
 
 public class DockerNodeRole implements Role, UplinkRole {
@@ -63,17 +66,25 @@ public class DockerNodeRole implements Role, UplinkRole {
      */
     private String sshIdentityPath;
 
+    /**
+     * Additional files to copy into the docker image.
+     */
+    private final List<AdditionalFile> additionalFiles;
+
     @JsonCreator
     public DockerNodeRole(@JsonProperty("imageId") String imageId,
                           @JsonProperty("dockerUser") String dockerUser,
                           @JsonProperty("sshPort") int sshPort,
                           @JsonProperty("containerName") String containerName,
-                          @JsonProperty("sshIdentityPath") String sshIdentityPath) {
+                          @JsonProperty("sshIdentityPath") String sshIdentityPath,
+                          @JsonProperty("additionalFiles") List<AdditionalFile> additionalFiles) {
         this.imageId = imageId == null ? "" : imageId;
         this.dockerUser = dockerUser == null ? "" : dockerUser;
         this.sshPort = sshPort < 0 ? 0 : sshPort;
         this.containerName = containerName == null ? "" : containerName;
         this.sshIdentityPath = sshIdentityPath == null ? "" : sshIdentityPath;
+        this.additionalFiles = additionalFiles == null ? Collections.emptyList() :
+            Collections.unmodifiableList(new ArrayList<>(additionalFiles));
     }
 
     @JsonProperty
@@ -113,6 +124,11 @@ public class DockerNodeRole implements Role, UplinkRole {
         this.sshIdentityPath = sshIdentityPath;
     }
 
+    @JsonProperty
+    public List<AdditionalFile> additionalFiles() {
+        return this.additionalFiles;
+    }
+
     @Override
     public Collection<Action> createActions(String nodeName) {
         ArrayList<Action> actions = new ArrayList<>();
@@ -120,6 +136,9 @@ public class DockerNodeRole implements Role, UplinkRole {
         actions.add(new DockerDestroyAction(nodeName, this));
         actions.add(new DockerInitAction(nodeName, this));
         actions.add(new UplinkCheckAction(nodeName));
+        if (!additionalFiles.isEmpty()) {
+            actions.add(new CopyAdditionalFilesAction(nodeName, additionalFiles));
+        }
         return actions;
     }
 
