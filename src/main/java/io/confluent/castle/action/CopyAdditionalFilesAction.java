@@ -49,6 +49,7 @@ public final class CopyAdditionalFilesAction extends Action {
             return;
         }
         node.log().printf("*** %s: Copying additional files.%n", node.nodeName());
+        node.uplink().command().args("sudo", "chown", "`whoami`", "/mnt").mustRun();
         for (AdditionalFile file : files) {
             node.uplink().command().syncTo(file.local(), file.remote()).mustRun();
         }
