@@ -26,8 +26,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 public class UbuntuNodeRole implements Role {
+    private final static String DEFAULT_JDK_PACKAGE = "openjdk-8-jdk-headless";
+
+    private final String jdkPackage;
+
     @JsonCreator
-    public UbuntuNodeRole() {
+    public UbuntuNodeRole(@JsonProperty("jdkPackage") String jdkPackage) {
+        this.jdkPackage = (jdkPackage == null) ? DEFAULT_JDK_PACKAGE : jdkPackage;
     }
 
     @Override
@@ -35,5 +40,10 @@ public class UbuntuNodeRole implements Role {
         ArrayList<Action> actions = new ArrayList<>();
         actions.add(new UbuntuSetupAction(nodeName, this));
         return actions;
+    }
+
+    @JsonProperty
+    public String jdkPackage() {
+        return jdkPackage;
     }
 };

@@ -27,11 +27,14 @@ import io.confluent.castle.role.UbuntuNodeRole;
 public final class UbuntuSetupAction extends Action {
     public final static String TYPE = "ubuntuSetup";
 
+    private final UbuntuNodeRole role;
+
     public UbuntuSetupAction(String scope, UbuntuNodeRole role) {
         super(new ActionId(TYPE, scope),
             new TargetId[] {},
             new String[] {},
             0);
+        this.role = role;
     }
 
     @Override
@@ -41,7 +44,7 @@ public final class UbuntuSetupAction extends Action {
             "sudo", "dpkg", "--configure", "-a", "&&",
             "sudo", "apt-get", "update", "-y", "&&",
             "sudo", "apt-get", "install", "-y", "iptables", "rsync", "wget", "curl", "collectd-core",
-            "coreutils", "cmake", "pkg-config", "libfuse-dev", "openjdk-8-jdk-headless").mustRun();
+            "coreutils", "cmake", "pkg-config", "libfuse-dev", role.jdkPackage()).mustRun();
         node.log().printf("*** %s: Finished UbuntuSetup.%n", node.nodeName());
     }
 };
