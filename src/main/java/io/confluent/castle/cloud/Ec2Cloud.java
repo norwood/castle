@@ -392,8 +392,12 @@ public final class Ec2Cloud implements AutoCloseable, Runnable {
             node.nodeName(), String.join(", ",
                 infos.stream().map(info -> info.instanceId()).collect(Collectors.toSet()))),
             node.log(), cluster.clusterLog());
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
         for (Ec2InstanceInfo info : infos) {
-            terminateInstance(info.instanceId());
+            futures.add(terminateInstance(info.instanceId()));
+        }
+        for (CompletableFuture<Void> future : futures) {
+            future.get();
         }
     }
 
