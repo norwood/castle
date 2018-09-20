@@ -39,6 +39,7 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -140,8 +141,16 @@ public final class CastleTool {
                     equals(JSON_SERDE.writeValueAsString(oldSpec.conf()))) ||
                 (!JSON_SERDE.writeValueAsString(newSpec.roles()).
                     equals(JSON_SERDE.writeValueAsString(oldSpec.roles())))) {
+            HashMap<String, CastleNodeSpec> mergedNodes = new HashMap<>();
+            for (Map.Entry<String, CastleNodeSpec> entry : newSpec.nodes().entrySet()) {
+                String nodeName = entry.getKey();
+                CastleNodeSpec newNode = entry.getValue();
+                CastleNodeSpec oldNode = oldSpec.nodes().get(nodeName);
+                mergedNodes.put(nodeName, new CastleNodeSpec(newNode.roleNames(),
+                    oldNode != null ? oldNode.rolePatches() : Collections.emptyMap()));
+            }
             CastleClusterSpec mergedSpec =
-                new CastleClusterSpec(newSpec.conf(), oldSpec.nodes(), newSpec.roles());
+                new CastleClusterSpec(newSpec.conf(), mergedNodes, newSpec.roles());
             System.out.printf("Merging new data from %s into %s%n", newPath, oldPath);
             JSON_SERDE.writeValue(new File(oldPath), mergedSpec);
         }
