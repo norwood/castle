@@ -79,4 +79,13 @@ public class JsonMergerTest {
         d1.set("bar", NullNode.instance);
         assertEquals(d1, JsonMerger.delta(b, a));
     }
+
+    @Test
+    public void testIdenticalObjectDelta() throws Exception {
+        ObjectNode a = new ObjectNode(JsonNodeFactory.instance);
+        a.set("foo", new TextNode("abcdef"));
+        ObjectNode b = new ObjectNode(JsonNodeFactory.instance);
+        b.set("foo", new TextNode("abcdef"));
+        assertEquals(null, JsonMerger.delta(b, a));
+    }
 };

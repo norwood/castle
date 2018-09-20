@@ -109,6 +109,9 @@ public class JsonMerger {
                 delta.set(entry.getKey(), entry.getValue().deepCopy());
             }
         }
+        if (delta.size() == 0) {
+            return null;
+        }
         return delta;
     }
 };
