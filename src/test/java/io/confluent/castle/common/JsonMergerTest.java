@@ -19,6 +19,7 @@ package io.confluent.castle.common;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import org.junit.Rule;
@@ -52,5 +53,30 @@ public class JsonMergerTest {
         assertEquals(new TextNode("abcdef"), c.get("foo"));
         assertEquals(new TextNode("ghijkl"), c.get("bar"));
         assertEquals(new ObjectNode(JsonNodeFactory.instance), c.get("baz"));
+    }
+
+    @Test
+    public void testNullDeltas() throws Exception {
+        assertEquals(null,
+            JsonMerger.delta(null, null));
+        assertEquals(NullNode.instance,
+            JsonMerger.delta(new TextNode("abc"), null));
+        assertEquals(new TextNode("abc"),
+            JsonMerger.delta(null, new TextNode("abc")));
+    }
+
+    @Test
+    public void testObjectDeltas() throws Exception {
+        ObjectNode a = new ObjectNode(JsonNodeFactory.instance);
+        a.set("foo", new TextNode("abcdef"));
+        ObjectNode b = new ObjectNode(JsonNodeFactory.instance);
+        b.set("foo", new TextNode("abcdef"));
+        b.set("bar", new TextNode("ghijkl"));
+        ObjectNode d0 = new ObjectNode(JsonNodeFactory.instance);
+        d0.set("bar", new TextNode("ghijkl"));
+        assertEquals(d0, JsonMerger.delta(a, b));
+        ObjectNode d1 = new ObjectNode(JsonNodeFactory.instance);
+        d1.set("bar", NullNode.instance);
+        assertEquals(d1, JsonMerger.delta(b, a));
     }
 };
