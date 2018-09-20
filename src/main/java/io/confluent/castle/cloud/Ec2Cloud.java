@@ -300,12 +300,16 @@ public final class Ec2Cloud implements AutoCloseable, Runnable {
                             instance.getState().toString()));
                     }
                 }
-                for (DescribeAllInstancesOp describeAll : describeAlls) {
-                    describeAll.future.complete(all);
+                for (Iterator<DescribeAllInstancesOp> iter = describeAlls.iterator();
+                     iter.hasNext(); iter.remove()) {
+                    DescribeAllInstancesOp op = iter.next();
+                    op.future.complete(all);
                 }
             } catch (Exception e) {
-                for (DescribeAllInstancesOp describeAll : describeAlls) {
-                    describeAll.future.completeExceptionally(e);
+                for (Iterator<DescribeAllInstancesOp> iter = describeAlls.iterator();
+                     iter.hasNext(); iter.remove()) {
+                    DescribeAllInstancesOp op = iter.next();
+                    op.future.completeExceptionally(e);
                 }
             }
         } else if (!terminates.isEmpty()) {
