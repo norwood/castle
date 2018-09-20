@@ -49,7 +49,7 @@ public class ActionSchedulerTest {
     private CastleCluster createCluster(int numNodes) throws Exception {
         Map<String, CastleNodeSpec> map = new HashMap<>();
         CastleNodeSpec specA = new CastleNodeSpec(
-            Arrays.asList(new String[] {"mockCloud"}));
+            Arrays.asList(new String[] {"mockCloud"}), null);
         map.put(String.format("node[0-%d]", numNodes - 1), specA);
         Map<String, Role> roles = new HashMap<>();
         roles.put("mockCloud", new MockCloudRole());

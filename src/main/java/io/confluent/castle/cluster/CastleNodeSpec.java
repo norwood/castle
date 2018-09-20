@@ -19,22 +19,35 @@ package io.confluent.castle.cluster;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 public class CastleNodeSpec {
     private final List<String> roleNames;
+    private final Map<String, JsonNode> rolePatches;
 
     @JsonCreator
-    public CastleNodeSpec(@JsonProperty("roleNames") List<String> roleNames) {
+    public CastleNodeSpec(@JsonProperty("roleNames") List<String> roleNames,
+                          @JsonProperty("rolePatches") Map<String, JsonNode> rolePatches) {
         this.roleNames = Collections.unmodifiableList(
             (roleNames == null) ? new ArrayList<>() : new ArrayList<>(roleNames));
+        this.rolePatches = Collections.unmodifiableMap(
+            (rolePatches == null) ? Collections.emptyMap() :
+                new TreeMap<>(rolePatches));
     }
 
     @JsonProperty
     public List<String> roleNames() {
         return roleNames;
+    }
+
+    @JsonProperty
+    public Map<String, JsonNode> rolePatches() {
+        return rolePatches;
     }
 }

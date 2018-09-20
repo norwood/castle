@@ -23,6 +23,7 @@ import io.confluent.castle.action.ActionScheduler;
 import io.confluent.castle.cloud.CloudCache;
 import io.confluent.castle.common.CastleLog;
 import io.confluent.castle.common.CastleUtil;
+import io.confluent.castle.common.JsonMerger;
 import io.confluent.castle.role.BrokerRole;
 import io.confluent.castle.role.Role;
 import io.confluent.castle.role.UplinkRole;
@@ -217,33 +218,27 @@ public final class CastleCluster implements AutoCloseable {
      */
     public CastleClusterSpec toSpec() throws Exception {
         Map<String, CastleNodeSpec> nodeSpecs = new TreeMap<>();
-        Map<String, Role> roles = new TreeMap<>();
-        Map<String, String> roleJsonToNames = new TreeMap<>();
-        for (Map.Entry<String, Role> entry : originalRoles.entrySet()) {
-            roleJsonToNames.put(CastleTool.JSON_SERDE.
-                writeValueAsString(entry.getValue()), entry.getKey());
-        }
-        for (Map.Entry<String, CastleNode> entry : nodes.entrySet()) {
-            CastleNode node = entry.getValue();
-            List<String> roleNames = new ArrayList<>();
-            for (Role role : node.roles().values()) {
-                String roleJson = CastleTool.JSON_SERDE.writeValueAsString(role);
-                String roleName = roleJsonToNames.get(roleJson);
-                if (roleName != null) {
-                    roleNames.add(roleName);
-                    roles.put(roleName, role);
-                } else {
-                    JsonNode jsonNode = CastleTool.JSON_SERDE.readTree(roleJson);
-                    String newRoleName = String.format("%s_%s",
-                        node.nodeName(), jsonNode.get("type").textValue());
-                    roleJsonToNames.put(roleJson, newRoleName);
-                    roleNames.add(newRoleName);
-                    roles.put(newRoleName, role);
+        for (CastleNode node : nodes.values()) {
+            List<String> nodeRoleNames = new ArrayList<>();
+            Map<String, JsonNode> nodeRolePatches = new HashMap<>();
+            for (Map.Entry<String, Role> roleEntry : originalRoles.entrySet()) {
+                String roleName = roleEntry.getKey();
+                Role originalRole = roleEntry.getValue();
+                Role nodeRole = node.roles().get(originalRole.getClass());
+                if (nodeRole != null) {
+                    nodeRoleNames.add(roleName);
+                    JsonNode delta = JsonMerger.delta(
+                        CastleTool.JSON_SERDE.valueToTree(originalRole),
+                        CastleTool.JSON_SERDE.valueToTree(nodeRole));
+                    if (delta != null) {
+                        nodeRolePatches.put(roleName, delta);
+                    }
                 }
             }
-            nodeSpecs.put(node.nodeName(), new CastleNodeSpec(roleNames));
+            nodeSpecs.put(node.nodeName(),
+                new CastleNodeSpec(nodeRoleNames, nodeRolePatches));
         }
-        return new CastleClusterSpec(conf, nodeSpecs, roles);
+        return new CastleClusterSpec(conf, nodeSpecs, originalRoles);
     }
 
     /**

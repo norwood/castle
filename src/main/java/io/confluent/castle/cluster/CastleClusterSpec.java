@@ -19,7 +19,9 @@ package io.confluent.castle.cluster;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import io.confluent.castle.common.CastleUtil;
+import io.confluent.castle.common.JsonMerger;
 import io.confluent.castle.common.StringExpander;
 import io.confluent.castle.role.Role;
 import io.confluent.castle.tool.CastleTool;
@@ -82,19 +84,21 @@ public class CastleClusterSpec {
         Map<String, Map<Class<? extends Role>, Role>> nodesToRoles = new TreeMap<>();
         for (Map.Entry<String, CastleNodeSpec> entry : nodes.entrySet()) {
             String nodeName = entry.getKey();
+            CastleNodeSpec node = entry.getValue();
             Map<Class<? extends Role>, Role> roleMap = new HashMap<>();
             nodesToRoles.put(nodeName, roleMap);
-            for (String roleName : entry.getValue().roleNames()) {
+            for (String roleName : node.roleNames()) {
                 Role role = roles.get(roleName);
                 if (role == null) {
                     throw new RuntimeException("For node " + nodeName +
                         ", no role named " + roleName + " found.  Role names are " +
-                        CastleUtil.join(entry.getValue().roleNames(), ", "));
+                        CastleUtil.join(node.roleNames(), ", "));
                 }
-                Role roleCopy = CastleTool.JSON_SERDE.readValue(
-                    CastleTool.JSON_SERDE.writeValueAsBytes(role),
-                    Role.class);
-                roleMap.put(role.getClass(), roleCopy);
+                JsonNode originalRole = CastleTool.JSON_SERDE.valueToTree(role);
+                JsonNode deltaRole = node.rolePatches().get(roleName);
+                JsonNode nodeRole = JsonMerger.merge(originalRole, deltaRole);
+                roleMap.put(role.getClass(),
+                    CastleTool.JSON_SERDE.treeToValue(nodeRole, Role.class));
             }
         }
         return nodesToRoles;

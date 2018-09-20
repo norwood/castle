@@ -46,10 +46,10 @@ public class CastleClusterSpecTest {
     private CastleClusterSpec createCastleClusterSpec() throws Exception {
         Map<String, CastleNodeSpec> map = new HashMap<>();
         CastleNodeSpec specA = new CastleNodeSpec(
-            Arrays.asList(new String[] {"broker", "trogdorAgent", "dockerNode"}));
+            Arrays.asList(new String[] {"broker", "trogdorAgent", "dockerNode"}), null);
         map.put("node[0-2]", specA);
         CastleNodeSpec specB = new CastleNodeSpec(
-            Arrays.asList(new String[] {"zooKeeper", "trogdorCoordinator", "dockerNode"}));
+            Arrays.asList(new String[] {"zooKeeper", "trogdorCoordinator", "dockerNode"}), null);
         map.put("node3", specB);
         Map<String, Role> roles = new HashMap<>();
         roles.put("broker", new BrokerRole(0, Collections.emptyMap(), "", null));
