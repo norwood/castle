@@ -247,7 +247,8 @@ public final class Ec2Cloud implements AutoCloseable, Runnable {
                 CreateInstanceOp runInstance = runInstanceIterator.next();
                 runInstance.future.completeExceptionally(failureException);
             }
-        } else if (!describes.isEmpty()) {
+        }
+        if (!describes.isEmpty()) {
             Map<String, DescribeInstanceOp> idToDescribe = new HashMap<>();
             for (Iterator<DescribeInstanceOp> iter = describes.iterator(); iter.hasNext();
                      iter.remove()) {
@@ -279,7 +280,8 @@ public final class Ec2Cloud implements AutoCloseable, Runnable {
             for (Map.Entry<String, DescribeInstanceOp> entry : idToDescribe.entrySet()) {
                 entry.getValue().future.completeExceptionally(failureException);
             }
-        } else if (!describeAlls.isEmpty()) {
+        }
+        if (!describeAlls.isEmpty()) {
             try {
                 if (settings.keyPair().isEmpty()) {
                     throw new RuntimeException("You must specify a keypair with --keypair in " +
@@ -312,7 +314,8 @@ public final class Ec2Cloud implements AutoCloseable, Runnable {
                     op.future.completeExceptionally(e);
                 }
             }
-        } else if (!terminates.isEmpty()) {
+        }
+        if (!terminates.isEmpty()) {
             Map<String, TerminateInstanceOp> idToTerminate = new HashMap<>();
             for (Iterator<TerminateInstanceOp> iter = terminates.iterator(); iter.hasNext();
                      iter.remove()) {
