@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import io.confluent.castle.cluster.CastleNodeSpec;
 import io.confluent.castle.common.CastleUtil;
 import io.confluent.castle.common.JsonConfigFile;
 import net.sourceforge.argparse4j.ArgumentParsers;
@@ -38,7 +39,9 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static net.sourceforge.argparse4j.impl.Arguments.store;
@@ -130,6 +133,20 @@ public final class CastleTool {
         return CastleTool.JSON_SERDE.treeToValue(transofmredConfNode, CastleClusterSpec.class);
     }
 
+    private static void mergerClusterConf(String newPath, String oldPath) throws Throwable {
+        CastleClusterSpec newSpec = readClusterSpec(newPath);
+        CastleClusterSpec oldSpec = readClusterSpec(oldPath);
+        if ((!JSON_SERDE.writeValueAsString(newSpec.conf()).
+                    equals(JSON_SERDE.writeValueAsString(oldSpec.conf()))) ||
+                (!JSON_SERDE.writeValueAsString(newSpec.roles()).
+                    equals(JSON_SERDE.writeValueAsString(oldSpec.roles())))) {
+            CastleClusterSpec mergedSpec =
+                new CastleClusterSpec(newSpec.conf(), oldSpec.nodes(), newSpec.roles());
+            System.out.printf("Merging new data from %s into %s%n", newPath, oldPath);
+            JSON_SERDE.writeValue(new File(oldPath), mergedSpec);
+        }
+    }
+
     public static void main(String[] args) throws Throwable {
         ArgumentParser parser = ArgumentParsers
             .newArgumentParser("castle-tool")
@@ -187,9 +204,7 @@ public final class CastleTool {
                 CastleEnvironment.CLUSTER_FILE_NAME);
             if (defaultClusterConfPath.toFile().exists()) {
                 if (!clusterPath.isEmpty()) {
-                    throw new RuntimeException("A cluster file named " +
-                        defaultClusterConfPath.toString() + " exists in your working directory.  " +
-                        "You must not specify a cluster path with -c or --cluster.");
+                    mergerClusterConf(clusterPath, defaultClusterConfPath.toString());
                 }
                 clusterPath = defaultClusterConfPath.toAbsolutePath().toString();
             } else if (clusterPath.isEmpty()) {
