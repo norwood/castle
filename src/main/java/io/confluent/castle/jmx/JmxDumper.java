@@ -17,6 +17,8 @@
 
 package io.confluent.castle.jmx;
 
+import com.google.inject.internal.util.Lists;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -31,6 +33,8 @@ import javax.management.InstanceNotFoundException;
 import javax.management.MBeanAttributeInfo;
 import javax.management.MBeanInfo;
 import javax.management.MBeanServerConnection;
+import javax.management.ObjectInstance;
+import javax.management.ObjectName;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
@@ -75,6 +79,28 @@ public final class JmxDumper {
         JSON_SERDE.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
         JSON_SERDE.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
         JSON_SERDE.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+    }
+
+    static Collection<JmxObjectConfig> handlePatterns(
+        MBeanServerConnection connection,
+        Collection<JmxObjectConfig> configs
+    ) throws Exception {
+        List<JmxObjectConfig> out = Lists.newArrayList();
+        for (JmxObjectConfig config : configs) {
+            ObjectName objectName = config.objectName();
+            if (objectName.isPattern()) {
+                for (ObjectInstance instance : connection.queryMBeans(objectName, null)) {
+                    out.add(new JmxObjectConfig(
+                        instance.getObjectName().getCanonicalName(),
+                        instance.getObjectName().getCanonicalName(),
+                        config.attributes()
+                    ));
+                }
+            } else {
+                out.add(config);
+            }
+        }
+        return Collections.unmodifiableCollection(out);
     }
 
     public static final class DumperUrl {
@@ -135,7 +161,7 @@ public final class JmxDumper {
             HashMap<String, String> shortNames = new HashMap<>();
             CsvRow headerRow = new CsvRow();
             headerRow.add("time");
-            for (JmxObjectConfig object : file.objects()) {
+            for (JmxObjectConfig object : handlePatterns(connection, file.objects())) {
                 String prev = shortNames.get(object.shortName());
                 if (prev != null) {
                     throw new RuntimeException("shortName collision: both " + prev + " and " +
@@ -159,7 +185,7 @@ public final class JmxDumper {
         public void storeJmx(long time) throws Exception {
             CsvRow row = new CsvRow();
             row.addTimeMs(time);
-            for (JmxObjectConfig object : file.objects()) {
+            for (JmxObjectConfig object : handlePatterns(connection, file.objects())) {
                 HashMap<String, Object> values = new HashMap<>();
                 List<Attribute> attributeList = null;
                 Collection<String> attributesToGet = object.attributes();
@@ -284,7 +310,7 @@ public final class JmxDumper {
 
         private final boolean load() throws Exception {
             Collection<JmxObjectConfig> objects = dumperConfig.allObjects();
-            for (JmxObjectConfig object : objects) {
+            for (JmxObjectConfig object : handlePatterns(connection, objects)) {
                 MBeanInfo info = null;
                 try {
                     info = connection.getMBeanInfo(object.objectName());
@@ -300,8 +326,10 @@ public final class JmxDumper {
                 objectNameToAllAttributes.put(object.name(), attributeList);
                 for (String attribute : object.attributes()) {
                     if (!attributeList.contains(attribute)) {
-                        throw new RuntimeException("Unable to find attribute " + attribute + " for " +
-                            object.name() + ".  Found: " + String.join("|", attributeList));
+                        throw new RuntimeException(
+                            "Unable to find attribute " + attribute + " for " +
+                            object.name() + ".  Found: " + String.join("|", attributeList)
+                        );
                     }
                 }
             }
